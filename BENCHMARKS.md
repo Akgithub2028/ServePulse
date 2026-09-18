@@ -154,19 +154,38 @@ dominate. That is the right thing to optimise first if this ever needed to be fa
 | Requests in flight during the rollback switch | 18, **0 failed** |
 | Total probe requests across both switches | 1,119, **0 failed** |
 
-## Docker — UNVERIFIED
+## Docker — measured in CI
 
-| Metric | Status |
+The development machine had no container runtime, so these figures were originally recorded
+as unverified. They are now measured on every push by the `docker` job in
+[`.github/workflows/ci.yml`](.github/workflows/ci.yml), on GitHub's `ubuntu-latest` runner,
+from an empty volume — the same conditions the deployment runs under.
+
+| Metric | Measured | Where |
+|---|---|---|
+| Image size | **839.7 MB** | `Report image size` step |
+| Image build time (cold, `buildx`, no layer cache) | **89 s** | `Build the serving image` step |
+| First-deploy bootstrap (fetch → validate → train → register) | **15 s** | `Run the first-deploy bootstrap` step |
+| Bootstrap re-run (idempotency check) | **3 s** | `Re-run the bootstrap…` step |
+| Container start to `/ready` = 200 | **~10 s** (ready on the 3rd poll) | `Wait for readiness` step |
+| Container restart on the same volume to `/ready` | **4 s** | `Restart on the same volume…` step |
+
+These are runner measurements, not development-machine numbers, and they are reproducible by
+re-running the job: the log of every run reports them. The image is large because the
+container embeds the full MLflow + pyarrow stack it needs to serve from the registry and to
+bootstrap itself; the serving-only pin set is far smaller, but a container that cannot reach
+its own registry is not a deployment.
+
+The same job records what the container *does*, which matters more than its size:
+
+| Property | Observed in CI |
 |---|---|
-| Image build time | **not measured** |
-| Image size | **not measured** |
-| Container start-up time | **not measured** |
-
-No container runtime (Docker, Podman, colima, OrbStack) was available on the
-development machine. `docker/Dockerfile` and `docker/docker-compose.yml` were written
-and statically checked but **never built or run**. The CI workflow contains a build job
-that would produce these figures on GitHub's runners; it has not been executed. These
-numbers must not be quoted anywhere.
+| Registry bootstrap in-container | `INIT_PRODUCTION_OK: production alias now at version 1` |
+| Redeploy does not move the model | `INIT_PRODUCTION_SKIP: production alias already at version 1` |
+| Serving process is unprivileged | `uvicorn pid 4079 runs as uid 10001` |
+| Graceful shutdown on SIGTERM | `exit code after SIGTERM: 0` |
+| State survives a restart | `model version after restart: 1` |
+| Deployed API contract | `VERIFY_DEPLOYMENT_OK` — 23/23 checks |
 
 ## Files
 

@@ -3,6 +3,12 @@
 How this platform is deployed, what the deployment actually guarantees, and — just as
 importantly — what it deliberately does not.
 
+The container path is exercised on every push: the `docker` job builds the image, runs the
+bootstrap against a root-owned volume, verifies the served API, asserts the process is
+non-root and proves the model survives a restart. Those measurements are recorded in
+[BENCHMARKS.md](BENCHMARKS.md#docker--measured-in-ci), and the reasoning behind each
+deployment decision is in [CI_CD.md](CI_CD.md).
+
 The short version: **a production-style, single-instance deployment of the real
 architecture.** The platform's storage is SQLite and filesystem-backed, so the deployed
 service runs one instance with a persistent disk. It does not claim horizontal scaling or
@@ -34,7 +40,7 @@ deployed. There is no second deployment path.
 | Entrypoint | [`docker/entrypoint.sh`](docker/entrypoint.sh) | Resolves `$PORT`, repairs the disk mount, drops privileges, execs uvicorn as PID 1 |
 | Runtime pins | [`requirements-deploy.txt`](requirements-deploy.txt) | Serving pins **plus** MLflow and pyarrow |
 | First-deploy bootstrap | [`scripts/deploy/init_production.py`](scripts/deploy/init_production.py) | Idempotent; reuses the project's own fetch/train/register machinery |
-| Deployed-state verifier | [`scripts/deploy/verify_deployment.py`](scripts/deploy/verify_deployment.py) | Non-mutating smoke test against a public URL |
+| Deployed-state verifier | [`scripts/deploy/verify_deployment.py`](scripts/deploy/verify_deployment.py) | Non-mutating smoke test against a public URL. The CI `docker` job runs it against the container too, where it reports 23/23 checks |
 | Blueprint validator | [`scripts/deploy/validate_blueprint.py`](scripts/deploy/validate_blueprint.py) | Structural invariants + official schema |
 | Secret scanner | [`scripts/deploy/scan_secrets.py`](scripts/deploy/scan_secrets.py) | Runs on every push |
 

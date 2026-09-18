@@ -26,7 +26,7 @@ verification script enforces that.
 | Drift detection latency | **1 window (2,000 records)** |
 | Retraining | Promotes a +0.029 ROC-AUC candidate, **rejects** a +0.000 one |
 | Rollback through the live service | **0.082 s**, 18 requests in flight, **0 failed** |
-| Tests | **418 passed, 0 failed** in 132.5 s |
+| Tests | **467 passed, 0 failed** (CI, Python 3.12 and 3.13) |
 | Training | **1.20 s**, byte-identical fingerprint across runs |
 
 ---
@@ -257,12 +257,13 @@ Stated plainly, because the point of this project is that its claims are checkab
 2. **Single node.** SQLite for tracking, registry and prediction logging — which is why
    the deployment runs one instance with a persistent disk, and why it claims neither
    horizontal scaling nor zero-downtime releases.
-3. **The container is verified by CI, not on a developer machine.** No container runtime was
-   available during development, so the image was authored and statically reviewed. The CI
-   `docker` job now builds it, runs the first-deploy bootstrap, boots the service, verifies
-   the API, checks the process is non-root and proves persistence across a restart. Image
-   size and container start-up time remain recorded as **UNVERIFIED** below and are quoted
-   nowhere until they are recorded as evidence.
+3. **The container is verified, but on a CI runner rather than a developer machine.** No
+   container runtime was available during development, which is why the image was initially
+   authored and statically reviewed only. The CI `docker` job now builds it, runs the
+   first-deploy bootstrap, boots the service, verifies the API, checks the process is
+   non-root and proves persistence across a restart — and those measurements (build time,
+   image size, start-up, shutdown behaviour) are recorded in
+   [BENCHMARKS.md](BENCHMARKS.md#docker--measured-in-ci) with their provenance.
 4. **CI is the release gate.** It runs on every push and pull request and every step below
    is reproduced in the workflow; the original development predates that, which is why
    [CI_CD.md](CI_CD.md) keeps a historical note about what had not yet run.

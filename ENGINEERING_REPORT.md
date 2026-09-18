@@ -184,10 +184,25 @@ make CI pass.
 | `npm run typecheck` / `npm run lint` / `npm run build` | pass; ~105 kB gzipped with four views code-split |
 | `npx playwright test` | 46 passed (desktop + mobile) |
 
-**Verified by the pipeline** (the container path, which needs a container runtime that this
-development environment does not have): image build, bootstrap against a root-owned volume,
-idempotent re-run, boot and `/ready` gate, API verification with the deployment verifier,
-non-root assertion, clean SIGTERM shutdown, and model persistence across a restart.
+**Verified by CI on `main`** — the full pipeline is green, all ten jobs, on the pushed
+commits. The container job's recorded evidence:
+
+| Observed | Value |
+|---|---|
+| Image built (cold, `buildx`, no layer cache) | 89 s · 839.7 MB |
+| First-deploy bootstrap in-container | `INIT_PRODUCTION_OK: production alias now at version 1` (15 s) |
+| Bootstrap re-run (idempotency) | `INIT_PRODUCTION_SKIP: production alias already at version 1` (3 s) |
+| Service ready after start | `/ready` = 200 on the 3rd poll (~10 s) |
+| Deployed API verification | `VERIFY_DEPLOYMENT_OK` — 23/23 checks |
+| Serving process identity | `uvicorn pid 4079 runs as uid 10001` |
+| Shutdown on SIGTERM | `exit code after SIGTERM: 0` |
+| State after restart (injected `$PORT`) | `model version after restart: 1` |
+| Backend suite on 3.12 and 3.13 | 467 passed (88 data-contract tests reported separately) |
+| Frontend job | `npm ci` → typecheck → lint → build → bundle secret scan → `npm audit` → 46 browser tests |
+
+These figures are recorded with their provenance in
+[BENCHMARKS.md](BENCHMARKS.md#docker--measured-in-ci) and are reproducible by re-running the
+job.
 
 ---
 
@@ -229,13 +244,10 @@ Honesty section. None of the following has been executed or confirmed:
   `https://mlserve-frontend.onrender.com` are the names the Blueprint requests. Render may
   assign different ones if the names are taken; the two cross-referencing environment values
   must then be updated (documented in [DEPLOYMENT.md](DEPLOYMENT.md)).
-- **Image size, image build time and container start-up time.** Not measured here and therefore
-  quoted nowhere, in keeping with the rest of this repository. The CI job prints the image size
-  into its log; it is not treated as a recorded result.
+- **The two-service local Docker composition** (`docker/docker-compose.yml`, API + MLflow
+  server) — reviewed, never executed; the deployed topology does not use it.
 - **Persistence across a real Render restart.** The equivalent is verified in CI against a
   Docker volume; the Render disk path itself has not been exercised.
-- **The local two-service Docker composition** (`docker/docker-compose.yml`, API + MLflow
-  server). Reviewed, never executed. The deployed topology does not use it.
 - **Browser behaviour on a real deployed frontend**, since the browser tests run against a
   locally served production bundle with a stubbed backend. The real API contract is verified
   separately by `scripts/deploy/verify_deployment.py`.

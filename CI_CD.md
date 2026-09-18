@@ -7,6 +7,12 @@ production.
 Workflow: [`.github/workflows/ci.yml`](.github/workflows/ci.yml) · Runs:
 <https://github.com/Akgithub2028/GitPushTern/actions>
 
+The pipeline runs green on `main`: all ten jobs pass, and the container job's evidence is
+recorded in [BENCHMARKS.md](BENCHMARKS.md#docker--measured-in-ci) — image built (89 s,
+839.7 MB), first-deploy bootstrap executed in-container, bootstrap re-run proving idempotency,
+service ready, deployed API verified (23/23 checks), serving process confirmed non-root
+(uid 10001), SIGTERM exit code 0, and the model intact after a restart on the same volume.
+
 > **History, stated plainly.** During the original development of this platform, no container
 > runtime was available on the development machine and the workflow had not been executed on
 > GitHub Actions. Those facts are preserved below because they are why a Docker verification
@@ -157,7 +163,7 @@ browser suite runs headless Chromium.
 |---|---|
 | `ruff check src tests scripts` | pass, 0 findings |
 | `black --check src tests scripts` | pass, no reformatting |
-| `pytest` (full backend suite) | **434 passed**, 0 failed |
+| `pytest` (full backend suite) | **434 passed**, 0 failed locally; **467 passed** in CI on 3.12 and 3.13 |
 | `pytest tests/test_deploy_tooling.py` | **33 passed** — proves each new gate actually fires |
 | `scripts/deploy/validate_blueprint.py` | 26/26 invariants + official schema pass |
 | `scripts/deploy/scan_secrets.py` | clean over all tracked files |
@@ -170,9 +176,10 @@ browser suite runs headless Chromium.
 | `npx playwright test` | **46 passed** (23 scenarios × desktop + mobile) |
 | Docker build / boot / API verification | executed by the `docker` job on every push (no local runtime available in the development environment) |
 
-Image build time, image size and container start-up time are **not** quoted anywhere in this
-repository as measured results. The `docker` job reports image size into its log; until those
-numbers are recorded in [BENCHMARKS.md](BENCHMARKS.md) as evidence, they remain unquoted.
+Image build time, image size and container start-up time are no longer unmeasured: the
+`docker` job produces them on every push and they are recorded, with their provenance, in
+[BENCHMARKS.md](BENCHMARKS.md#docker--measured-in-ci). They are runner measurements — quoted
+as such, and reproducible by re-running the job rather than by trusting this document.
 
 ---
 
