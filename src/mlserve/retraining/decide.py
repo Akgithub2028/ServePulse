@@ -129,7 +129,9 @@ class CandidateEvidence:
         return {
             "metric_name": self.metric_name,
             "candidate_metric": round(self.candidate_metric, 6),
-            "incumbent_metric": round(self.incumbent_metric, 6) if self.incumbent_metric is not None else None,
+            "incumbent_metric": (
+                round(self.incumbent_metric, 6) if self.incumbent_metric is not None else None
+            ),
             "delta": round(self.delta, 6) if self.delta is not None else None,
             "candidate_p95_latency_ms": self.candidate_p95_latency_ms,
             "incumbent_p95_latency_ms": self.incumbent_p95_latency_ms,

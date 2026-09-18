@@ -49,7 +49,9 @@ class EvaluationResult:
         return {f"{prefix}_{k}": v for k, v in self.metrics.items()}
 
 
-def compute_metrics(y_true: np.ndarray, y_proba: np.ndarray, *, threshold: float) -> dict[str, float]:
+def compute_metrics(
+    y_true: np.ndarray, y_proba: np.ndarray, *, threshold: float
+) -> dict[str, float]:
     """All headline metrics from labels and positive-class probabilities."""
     y_true = np.asarray(y_true).astype(int)
     y_proba = np.asarray(y_proba, dtype=float)
@@ -68,7 +70,9 @@ def compute_metrics(y_true: np.ndarray, y_proba: np.ndarray, *, threshold: float
         "f1": float(f1_score(y_true, y_pred, zero_division=0)),
         # Calibration: a model can rank well and still return unusable probabilities.
         "brier": float(brier_score_loss(y_true, y_proba)),
-        "log_loss": float("nan") if single_class else float(log_loss(y_true, y_proba, labels=[0, 1])),
+        "log_loss": (
+            float("nan") if single_class else float(log_loss(y_true, y_proba, labels=[0, 1]))
+        ),
     }
     return {k: (round(v, 6) if v == v else v) for k, v in out.items()}
 

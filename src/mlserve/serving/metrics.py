@@ -79,8 +79,32 @@ class ServingMetrics:
         self,
         *,
         registry: CollectorRegistry | None = None,
-        latency_buckets: tuple[float, ...] = (0.001, 0.0025, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5),
-        prediction_buckets: tuple[float, ...] = (0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.95),
+        latency_buckets: tuple[float, ...] = (
+            0.001,
+            0.0025,
+            0.005,
+            0.01,
+            0.025,
+            0.05,
+            0.1,
+            0.25,
+            0.5,
+            1.0,
+            2.5,
+        ),
+        prediction_buckets: tuple[float, ...] = (
+            0.05,
+            0.1,
+            0.2,
+            0.3,
+            0.4,
+            0.5,
+            0.6,
+            0.7,
+            0.8,
+            0.9,
+            0.95,
+        ),
         feature_sample_rate: float = 1.0,
         seed: int | None = None,
     ):
@@ -90,63 +114,90 @@ class ServingMetrics:
         self._lock = threading.Lock()
 
         self.requests = Counter(
-            "mlserve_requests", "Requests handled, by endpoint, method and status class.",
-            ["endpoint", "method", "status"], registry=self.registry,
+            "mlserve_requests",
+            "Requests handled, by endpoint, method and status class.",
+            ["endpoint", "method", "status"],
+            registry=self.registry,
         )
         self.errors = Counter(
-            "mlserve_errors", "Failed requests, by endpoint and error type.",
-            ["endpoint", "error_type"], registry=self.registry,
+            "mlserve_errors",
+            "Failed requests, by endpoint and error type.",
+            ["endpoint", "error_type"],
+            registry=self.registry,
         )
         self.latency = Histogram(
-            "mlserve_request_latency_seconds", "Server-side request handling time.",
-            ["endpoint"], buckets=latency_buckets, registry=self.registry,
+            "mlserve_request_latency_seconds",
+            "Server-side request handling time.",
+            ["endpoint"],
+            buckets=latency_buckets,
+            registry=self.registry,
         )
         self.predictions = Counter(
-            "mlserve_predictions", "Individual records scored.",
-            ["model_version"], registry=self.registry,
+            "mlserve_predictions",
+            "Individual records scored.",
+            ["model_version"],
+            registry=self.registry,
         )
         self.prediction_score = Histogram(
-            "mlserve_prediction_score", "Distribution of predicted positive-class probability.",
-            ["model_version"], buckets=prediction_buckets, registry=self.registry,
+            "mlserve_prediction_score",
+            "Distribution of predicted positive-class probability.",
+            ["model_version"],
+            buckets=prediction_buckets,
+            registry=self.registry,
         )
         self.predicted_class = Counter(
-            "mlserve_predicted_class", "Predicted hard labels.",
-            ["model_version", "predicted_class"], registry=self.registry,
+            "mlserve_predicted_class",
+            "Predicted hard labels.",
+            ["model_version", "predicted_class"],
+            registry=self.registry,
         )
         # prometheus_client fixes bucket edges per metric, so each numeric feature gets
         # its own histogram rather than one histogram with a `feature` label: age and
         # capital_gain span completely different ranges and cannot share edges.
         self.feature_histograms: dict[str, Histogram] = {
             name: Histogram(
-                f"mlserve_feature_{name}", f"Distribution of incoming feature '{name}'.",
-                buckets=FEATURE_BUCKETS.get(name, (0.0, 1.0)), registry=self.registry,
+                f"mlserve_feature_{name}",
+                f"Distribution of incoming feature '{name}'.",
+                buckets=FEATURE_BUCKETS.get(name, (0.0, 1.0)),
+                registry=self.registry,
             )
             for name in NUMERIC_FEATURES
         }
         self.feature_level = Counter(
-            "mlserve_feature_level", "Observed levels of the low-cardinality categoricals.",
-            ["feature", "level"], registry=self.registry,
+            "mlserve_feature_level",
+            "Observed levels of the low-cardinality categoricals.",
+            ["feature", "level"],
+            registry=self.registry,
         )
         self.model_info = Gauge(
-            "mlserve_model_info", "Always 1; the labels carry the served model's identity.",
+            "mlserve_model_info",
+            "Always 1; the labels carry the served model's identity.",
             ["model_name", "model_version", "model_alias", "dataset_version", "git_commit"],
             registry=self.registry,
         )
         self.model_loaded = Gauge(
-            "mlserve_model_loaded", "1 when a model is loaded and able to serve.",
+            "mlserve_model_loaded",
+            "1 when a model is loaded and able to serve.",
             registry=self.registry,
         )
         self.model_load_seconds = Gauge(
-            "mlserve_model_load_seconds", "Wall-clock time of the most recent model load.",
+            "mlserve_model_load_seconds",
+            "Wall-clock time of the most recent model load.",
             registry=self.registry,
         )
         self.model_loads = Counter(
-            "mlserve_model_loads", "Model load attempts, by outcome.",
-            ["outcome"], registry=self.registry,
+            "mlserve_model_loads",
+            "Model load attempts, by outcome.",
+            ["outcome"],
+            registry=self.registry,
         )
         self.uptime = Gauge("mlserve_uptime_seconds", "Process uptime.", registry=self.registry)
-        self.cpu_percent = Gauge("mlserve_resource_cpu_percent", "Process CPU utilisation.", registry=self.registry)
-        self.memory_bytes = Gauge("mlserve_resource_memory_bytes", "Process resident set size.", registry=self.registry)
+        self.cpu_percent = Gauge(
+            "mlserve_resource_cpu_percent", "Process CPU utilisation.", registry=self.registry
+        )
+        self.memory_bytes = Gauge(
+            "mlserve_resource_memory_bytes", "Process resident set size.", registry=self.registry
+        )
 
         self._process = None
         try:
@@ -198,8 +249,15 @@ class ServingMetrics:
                     self.feature_level.labels(feature=name, level=str(level)).inc()
         return sampled
 
-    def set_model(self, *, name: str, version: str, alias: str | None,
-                  dataset_version: str | None, git_commit: str | None) -> None:
+    def set_model(
+        self,
+        *,
+        name: str,
+        version: str,
+        alias: str | None,
+        dataset_version: str | None,
+        git_commit: str | None,
+    ) -> None:
         """Publish the served model's identity, clearing any previous one.
 
         The gauge is cleared first so that after a promotion or rollback exactly one
@@ -208,8 +266,11 @@ class ServingMetrics:
         """
         self.model_info.clear()
         self.model_info.labels(
-            model_name=name, model_version=version, model_alias=alias or "none",
-            dataset_version=dataset_version or "unknown", git_commit=git_commit or "unknown",
+            model_name=name,
+            model_version=version,
+            model_alias=alias or "none",
+            dataset_version=dataset_version or "unknown",
+            git_commit=git_commit or "unknown",
         ).set(1)
 
     def record_load(self, *, outcome: str, seconds: float | None = None) -> None:
@@ -234,5 +295,10 @@ class ServingMetrics:
         return generate_latest(self.registry)
 
 
-__all__ = ["CONTENT_TYPE", "OPENMETRICS_TYPE", "FEATURE_BUCKETS",
-           "LOW_CARDINALITY_CATEGORICALS", "ServingMetrics"]
+__all__ = [
+    "CONTENT_TYPE",
+    "OPENMETRICS_TYPE",
+    "FEATURE_BUCKETS",
+    "LOW_CARDINALITY_CATEGORICALS",
+    "ServingMetrics",
+]

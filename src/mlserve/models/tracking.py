@@ -33,8 +33,14 @@ def quiet_mlflow_logging() -> None:
     actually needs to read, and they say nothing about the run.
     """
     os.environ.setdefault("MLFLOW_LOGGING_LEVEL", "WARNING")
-    for name in ("alembic", "alembic.runtime.migration", "mlflow", "mlflow.store.db.utils",
-                 "mlflow.tracking._model_registry.fluent", "mlflow.models.model"):
+    for name in (
+        "alembic",
+        "alembic.runtime.migration",
+        "mlflow",
+        "mlflow.store.db.utils",
+        "mlflow.tracking._model_registry.fluent",
+        "mlflow.models.model",
+    ):
         logging.getLogger(name).setLevel(logging.WARNING)
     # The signature inferred from integer feature columns triggers a standing hint
     # about missing values. This contract forbids nulls (the validator rejects them),
@@ -58,7 +64,7 @@ def resolve_tracking_uri(config: Config) -> str:
     uri = str(config.require("mlflow.tracking_uri"))
     prefix = "sqlite:///"
     if uri.startswith(prefix):
-        path = uri[len(prefix):]
+        path = uri[len(prefix) :]
         if not Path(path).is_absolute():
             return prefix + str(project_root() / path)
     return uri
@@ -73,7 +79,7 @@ def configure_mlflow(config: Config | None = None) -> MlflowClient:
     if mlflow.get_experiment_by_name(experiment) is None:
         artifact_location = str(config.require("mlflow.artifact_location"))
         if artifact_location.startswith("file:./"):
-            artifact_location = "file:" + str(project_root() / artifact_location[len("file:./"):])
+            artifact_location = "file:" + str(project_root() / artifact_location[len("file:./") :])
         mlflow.create_experiment(experiment, artifact_location=artifact_location)
     mlflow.set_experiment(experiment)
     return MlflowClient(tracking_uri=uri)
@@ -144,8 +150,10 @@ def log_training_run(
                 json.dumps(run.to_dict(), indent=2, sort_keys=True)
             )
             (tmp_path / "feature_list.json").write_text(
-                json.dumps({"model_features": run.feature_list,
-                            "input_columns": run.input_columns}, indent=2)
+                json.dumps(
+                    {"model_features": run.feature_list, "input_columns": run.input_columns},
+                    indent=2,
+                )
             )
             (tmp_path / "environment.json").write_text(json.dumps(run.environment, indent=2))
             (tmp_path / "dataset_files.json").write_text(json.dumps(run.dataset_files, indent=2))

@@ -48,18 +48,29 @@ def raw_data():
 @pytest.fixture(scope="session")
 def full_split(raw_data, config) -> Split:
     development, test, version = raw_data
-    return make_split(development, test, version, seed=config.seed,
-                      validation_fraction=float(config.require("data.validation_fraction")))
+    return make_split(
+        development,
+        test,
+        version,
+        seed=config.seed,
+        validation_fraction=float(config.require("data.validation_fraction")),
+    )
 
 
 @pytest.fixture(scope="session")
 def small_split(raw_data, config) -> Split:
     """A stratified subsample, for tests that need a real fit but not a long one."""
     development, test, version = raw_data
-    dev_small = development.groupby(TARGET, group_keys=False).apply(
-        lambda g: g.sample(n=int(SMALL_TRAIN_ROWS * len(g) / len(development)), random_state=config.seed),
-        include_groups=True,
-    ).reset_index(drop=True)
+    dev_small = (
+        development.groupby(TARGET, group_keys=False)
+        .apply(
+            lambda g: g.sample(
+                n=int(SMALL_TRAIN_ROWS * len(g) / len(development)), random_state=config.seed
+            ),
+            include_groups=True,
+        )
+        .reset_index(drop=True)
+    )
     test_small = test.sample(n=SMALL_TEST_ROWS, random_state=config.seed).reset_index(drop=True)
     return make_split(dev_small, test_small, version, seed=config.seed, validation_fraction=0.25)
 
@@ -184,12 +195,24 @@ class StubLoader:
         self.reload_calls += 1
         before = self._model.model_version if self._model else None
         if self.reload_should_fail:
-            return self._model, {"ok": False, "from_version": before, "to_version": before,
-                                 "changed": False, "seconds": 0.001, "error": "injected failure"}
+            return self._model, {
+                "ok": False,
+                "from_version": before,
+                "to_version": before,
+                "changed": False,
+                "seconds": 0.001,
+                "error": "injected failure",
+            }
         self._model = self.next_model
         after = self._model.model_version if self._model else None
-        return self._model, {"ok": True, "from_version": before, "to_version": after,
-                             "changed": before != after, "seconds": 0.001, "error": None}
+        return self._model, {
+            "ok": True,
+            "from_version": before,
+            "to_version": after,
+            "changed": before != after,
+            "seconds": 0.001,
+            "error": None,
+        }
 
     def unload(self):
         self._model = None

@@ -26,13 +26,17 @@ def test_derived_columns_are_added(feature_frame):
 
 def test_net_capital_is_gain_minus_loss(feature_frame):
     out = DerivedFeatures().fit_transform(feature_frame)
-    expected = feature_frame["capital_gain"].astype(float) - feature_frame["capital_loss"].astype(float)
+    expected = feature_frame["capital_gain"].astype(float) - feature_frame["capital_loss"].astype(
+        float
+    )
     pd.testing.assert_series_equal(out["net_capital"], expected, check_names=False)
 
 
 def test_has_capital_flow_flags_any_activity(feature_frame):
     out = DerivedFeatures().fit_transform(feature_frame)
-    expected = ((feature_frame["capital_gain"] > 0) | (feature_frame["capital_loss"] > 0)).astype(int)
+    expected = ((feature_frame["capital_gain"] > 0) | (feature_frame["capital_loss"] > 0)).astype(
+        int
+    )
     pd.testing.assert_series_equal(out["has_capital_flow"], expected, check_names=False)
 
 
@@ -44,9 +48,18 @@ def test_log_capital_gain_is_monotonic_and_finite(feature_frame):
     assert pairs["log_capital_gain"].is_monotonic_increasing
 
 
-@pytest.mark.parametrize("hours,band", [(1, "part_time"), (34, "part_time"), (35, "full_time"),
-                                        (40, "full_time"), (44, "full_time"), (45, "overtime"),
-                                        (99, "overtime")])
+@pytest.mark.parametrize(
+    "hours,band",
+    [
+        (1, "part_time"),
+        (34, "part_time"),
+        (35, "full_time"),
+        (40, "full_time"),
+        (44, "full_time"),
+        (45, "overtime"),
+        (99, "overtime"),
+    ],
+)
 def test_hours_band_boundaries(feature_frame, hours, band):
     frame = feature_frame.head(1).copy()
     frame["hours_per_week"] = hours
@@ -77,10 +90,13 @@ def test_expected_input_columns_is_the_contract():
     assert expected_input_columns() == FEATURE_NAMES
 
 
-@pytest.mark.parametrize("estimator,params", [
-    ("hist_gradient_boosting", {"max_iter": 10}),
-    ("logistic_regression", {"max_iter": 100}),
-])
+@pytest.mark.parametrize(
+    "estimator,params",
+    [
+        ("hist_gradient_boosting", {"max_iter": 10}),
+        ("logistic_regression", {"max_iter": 100}),
+    ],
+)
 def test_both_estimators_build_and_fit(small_split, estimator, params):
     X, y = small_split.xy("train")
     pipeline = build_pipeline(estimator, params, seed=0)

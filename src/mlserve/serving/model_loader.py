@@ -100,8 +100,14 @@ class ModelLoader:
     SOURCE_ENV = "MLSERVE_MODEL_SOURCE"
     ALIAS_ENV = "MLSERVE_MODEL_ALIAS"
 
-    def __init__(self, config: Config | None = None, *, source: str | None = None,
-                 alias: str | None = None, bundle_dir: str | Path | None = None):
+    def __init__(
+        self,
+        config: Config | None = None,
+        *,
+        source: str | None = None,
+        alias: str | None = None,
+        bundle_dir: str | Path | None = None,
+    ):
         self.config = config or load_config()
         self.source = (
             source
@@ -109,15 +115,15 @@ class ModelLoader:
             or str(self.config.require("serving.model_source"))
         )
         if self.source not in {"registry", "file"}:
-            raise ValueError(
-                f"model source must be 'registry' or 'file', got {self.source!r}"
-            )
+            raise ValueError(f"model source must be 'registry' or 'file', got {self.source!r}")
         self.alias = (
             alias
             or os.environ.get(self.ALIAS_ENV)
             or str(self.config.require("serving.model_alias"))
         )
-        self.bundle_dir = Path(bundle_dir) if bundle_dir else self.config.path("paths.artifact_dir") / "current"
+        self.bundle_dir = (
+            Path(bundle_dir) if bundle_dir else self.config.path("paths.artifact_dir") / "current"
+        )
         self._lock = threading.Lock()
         self._model: LoadedModel | None = None
         self._last_error: str | None = None
@@ -191,7 +197,8 @@ class ModelLoader:
             except json.JSONDecodeError:
                 meta = {}
         metrics = {
-            k: v for k, v in (meta.get("metrics") or {}).items()
+            k: v
+            for k, v in (meta.get("metrics") or {}).items()
             if k.endswith(("roc_auc", "pr_auc", "accuracy", "f1"))
         }
         return LoadedModel(

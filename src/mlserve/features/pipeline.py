@@ -94,8 +94,9 @@ def _tree_preprocessor() -> ColumnTransformer:
             ("numeric", "passthrough", ALL_NUMERIC),
             (
                 "categorical",
-                OrdinalEncoder(handle_unknown="use_encoded_value", unknown_value=-1,
-                               encoded_missing_value=-1),
+                OrdinalEncoder(
+                    handle_unknown="use_encoded_value", unknown_value=-1, encoded_missing_value=-1
+                ),
                 ALL_CATEGORICAL,
             ),
         ],

@@ -26,10 +26,12 @@ def run(script: str, python: str) -> int:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description=__doc__,
-                                     formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--full", action="store_true",
-                        help="also run the clean-environment reproducibility check")
+    parser = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
+    parser.add_argument(
+        "--full", action="store_true", help="also run the clean-environment reproducibility check"
+    )
     args = parser.parse_args()
 
     python = sys.executable

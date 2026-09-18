@@ -53,9 +53,8 @@ def _field_for(spec: FeatureSpec) -> tuple[Any, Any]:
 
     allowed = tuple(spec.allowed) + ((MISSING_CATEGORY,) if spec.nullable else ())
     annotation = Literal[allowed]  # type: ignore[valid-type]
-    described = (
-        f"{spec.description} Allowed values: {len(allowed)} level(s)."
-        + (f" Use '{MISSING_CATEGORY}' when the value is unknown." if spec.nullable else "")
+    described = f"{spec.description} Allowed values: {len(allowed)} level(s)." + (
+        f" Use '{MISSING_CATEGORY}' when the value is unknown." if spec.nullable else ""
     )
     return (annotation, Field(..., description=described))
 
@@ -93,8 +92,7 @@ class PredictRequest(BaseModel):
 class Prediction(BaseModel):
     """The scored result for one input record."""
 
-    probability: float = Field(..., ge=0.0, le=1.0,
-                               description="P(income > 50K) for this record.")
+    probability: float = Field(..., ge=0.0, le=1.0, description="P(income > 50K) for this record.")
     prediction: int = Field(..., description="1 when probability >= threshold, else 0.")
     label: str = Field(..., description="The human-readable class label.")
 
@@ -138,8 +136,9 @@ class ModelInfoResponse(BaseModel):
     load_seconds: float
     input_columns: list[str] = Field(..., description="Exactly what POST /predict requires.")
     model_features: list[str] = Field(..., description="Features after internal engineering.")
-    metrics: dict[str, float] = Field(default_factory=dict,
-                                      description="Offline metrics recorded at training time.")
+    metrics: dict[str, float] = Field(
+        default_factory=dict, description="Offline metrics recorded at training time."
+    )
 
     model_config = ConfigDict(protected_namespaces=())
 

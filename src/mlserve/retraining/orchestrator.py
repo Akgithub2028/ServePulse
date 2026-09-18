@@ -87,9 +87,13 @@ class RetrainingOutcome:
         }
 
 
-def measure_p95_latency(pipeline, sample: pd.DataFrame, *,
-                        n_requests: int = LATENCY_PROBE_REQUESTS,
-                        batch_size: int = LATENCY_PROBE_BATCH) -> dict:
+def measure_p95_latency(
+    pipeline,
+    sample: pd.DataFrame,
+    *,
+    n_requests: int = LATENCY_PROBE_REQUESTS,
+    batch_size: int = LATENCY_PROBE_BATCH,
+) -> dict:
     """In-process latency probe for the acceptance gate.
 
     Deliberately in-process: this measures the *model*, so that a candidate rejected
@@ -105,7 +109,7 @@ def measure_p95_latency(pipeline, sample: pd.DataFrame, *,
     pipeline.predict_proba(rows.head(batch_size))
     for i in range(n_requests):
         start = i * batch_size % max(len(rows) - batch_size, 1)
-        batch = rows.iloc[start:start + batch_size]
+        batch = rows.iloc[start : start + batch_size]
         t0 = time.perf_counter()
         pipeline.predict_proba(batch)
         timings.append((time.perf_counter() - t0) * 1000.0)
@@ -120,9 +124,14 @@ def measure_p95_latency(pipeline, sample: pd.DataFrame, *,
     }
 
 
-def measure_latency_ab(candidate, incumbent, sample: pd.DataFrame, *,
-                       n_requests: int = LATENCY_PROBE_REQUESTS,
-                       batch_size: int = LATENCY_PROBE_BATCH) -> dict:
+def measure_latency_ab(
+    candidate,
+    incumbent,
+    sample: pd.DataFrame,
+    *,
+    n_requests: int = LATENCY_PROBE_REQUESTS,
+    batch_size: int = LATENCY_PROBE_BATCH,
+) -> dict:
     """Time two models against each other by interleaving their requests.
 
     Measuring one model fully and then the other does not cancel host contention: the
@@ -142,10 +151,15 @@ def measure_latency_ab(candidate, incumbent, sample: pd.DataFrame, *,
     and a reviewer must be able to see it.
     """
     if sample.empty or incumbent is None:
-        return {"candidate": measure_p95_latency(candidate, sample, n_requests=n_requests,
-                                                 batch_size=batch_size),
-                "incumbent": {"p50_ms": None, "p95_ms": None}, "ratio_p50": None,
-                "ratio_p95": None, "interleaved": False}
+        return {
+            "candidate": measure_p95_latency(
+                candidate, sample, n_requests=n_requests, batch_size=batch_size
+            ),
+            "incumbent": {"p50_ms": None, "p95_ms": None},
+            "ratio_p50": None,
+            "ratio_p95": None,
+            "interleaved": False,
+        }
 
     rows = sample[FEATURE_NAMES]
     # Untimed warm-up for both: the first call pays lazy allocation inside scikit-learn.
@@ -156,7 +170,7 @@ def measure_latency_ab(candidate, incumbent, sample: pd.DataFrame, *,
     span = max(len(rows) - batch_size, 1)
     for i in range(n_requests):
         start = (i * batch_size) % span
-        batch = rows.iloc[start:start + batch_size]
+        batch = rows.iloc[start : start + batch_size]
         for name, model in (("candidate", candidate), ("incumbent", incumbent)):
             t0 = time.perf_counter()
             model.predict_proba(batch)
@@ -178,10 +192,16 @@ def measure_latency_ab(candidate, incumbent, sample: pd.DataFrame, *,
     return {
         "candidate": candidate_stats,
         "incumbent": incumbent_stats,
-        "ratio_p50": round(candidate_stats["p50_ms"] / incumbent_stats["p50_ms"], 4)
-        if incumbent_stats["p50_ms"] else None,
-        "ratio_p95": round(candidate_stats["p95_ms"] / incumbent_stats["p95_ms"], 4)
-        if incumbent_stats["p95_ms"] else None,
+        "ratio_p50": (
+            round(candidate_stats["p50_ms"] / incumbent_stats["p50_ms"], 4)
+            if incumbent_stats["p50_ms"]
+            else None
+        ),
+        "ratio_p95": (
+            round(candidate_stats["p95_ms"] / incumbent_stats["p95_ms"], 4)
+            if incumbent_stats["p95_ms"]
+            else None
+        ),
         "interleaved": True,
     }
 
@@ -206,8 +226,9 @@ class RetrainingOrchestrator:
 
     # ------------------------------------------------------------------- trigger
 
-    def check_drift(self, reference: pd.DataFrame, current: pd.DataFrame,
-                    *, scenario: str | None = None) -> DriftReport:
+    def check_drift(
+        self, reference: pd.DataFrame, current: pd.DataFrame, *, scenario: str | None = None
+    ) -> DriftReport:
         detector = DriftDetector.from_config(reference[FEATURE_NAMES], self.config)
         return detector.detect(current, scenario=scenario)
 
@@ -243,9 +264,10 @@ class RetrainingOrchestrator:
             )
 
         trigger_reason = (
-            "forced by caller" if (force and not report.drift_detected)
+            "forced by caller"
+            if (force and not report.drift_detected)
             else f"drift detected: {report.n_drifted} feature(s) alerted, "
-                 f"{len(report.schema_failures)} schema failure(s)"
+            f"{len(report.schema_failures)} schema failure(s)"
         )
 
         incumbent_ref = self.registry.production()
@@ -263,7 +285,9 @@ class RetrainingOrchestrator:
         t_fit = time.perf_counter()
         try:
             candidate, candidate_run = train_model(
-                self.config, split=training_data, run_name=f"retrain-{scenario or 'manual'}",
+                self.config,
+                split=training_data,
+                run_name=f"retrain-{scenario or 'manual'}",
                 validate=False,  # already validated above; the report drives the gate
             )
         except Exception as exc:
@@ -287,7 +311,9 @@ class RetrainingOrchestrator:
         incumbent_pipeline = None
         if incumbent_ref is not None:
             incumbent_pipeline = self.registry.load(incumbent_ref)
-            incumbent_metrics = score_on_holdout(incumbent_pipeline, holdout, threshold=self.threshold)
+            incumbent_metrics = score_on_holdout(
+                incumbent_pipeline, holdout, threshold=self.threshold
+            )
 
         # Time both models by interleaving their requests on the same rows, so host
         # contention lands on both equally and cancels in the ratio the gate uses.
@@ -298,8 +324,9 @@ class RetrainingOrchestrator:
 
         evidence = CandidateEvidence(
             candidate_metric=float(candidate_metrics[self.metric_name]),
-            incumbent_metric=(float(incumbent_metrics[self.metric_name])
-                              if incumbent_metrics else None),
+            incumbent_metric=(
+                float(incumbent_metrics[self.metric_name]) if incumbent_metrics else None
+            ),
             metric_name=self.metric_name,
             candidate_p95_latency_ms=latency["p95_ms"],
             incumbent_p95_latency_ms=incumbent_latency["p95_ms"],
@@ -325,9 +352,15 @@ class RetrainingOrchestrator:
         if register:
             X_val, _ = training_data.xy("validation")
             logged = log_training_run(
-                candidate, candidate_run, self.config, input_example=X_val,
-                tags={"lifecycle": "retraining", "scenario": scenario or "manual",
-                      "decision": decision.decision.value},
+                candidate,
+                candidate_run,
+                self.config,
+                input_example=X_val,
+                tags={
+                    "lifecycle": "retraining",
+                    "scenario": scenario or "manual",
+                    "decision": decision.decision.value,
+                },
             )
             ref = self.registry.register(
                 logged.model_uri,

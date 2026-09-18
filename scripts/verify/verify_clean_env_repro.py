@@ -75,12 +75,23 @@ def main() -> int:
         # --results-dir keeps this run from overwriting the very baseline it is being
         # compared against; without it the check would silently compare a run to itself
         # on the next invocation.
-        result = run([str(python), "scripts/train.py", "--no-mlflow",
-                      "--out", str(out), "--results-dir", str(workdir / "results")])
+        result = run(
+            [
+                str(python),
+                "scripts/train.py",
+                "--no-mlflow",
+                "--out",
+                str(out),
+                "--results-dir",
+                str(workdir / "results"),
+            ]
+        )
         train_seconds = time.perf_counter() - t1
         if result.returncode != 0:
-            print(f"training failed:\n{result.stdout[-3000:]}\n{result.stderr[-3000:]}",
-                  file=sys.stderr)
+            print(
+                f"training failed:\n{result.stdout[-3000:]}\n{result.stderr[-3000:]}",
+                file=sys.stderr,
+            )
             return 1
 
         produced = json.loads((out / "run.json").read_text())
@@ -113,8 +124,10 @@ def main() -> int:
     print(f"split id        : {produced['split_id']}")
     print(f"fingerprint     : {produced['training_fingerprint'][:32]}")
     print(f"metrics compared: {compared}")
-    print(f"train time      : {train_seconds:.1f}s (clean env) vs "
-          f"{reference['total_seconds']:.1f}s (recorded)")
+    print(
+        f"train time      : {train_seconds:.1f}s (clean env) vs "
+        f"{reference['total_seconds']:.1f}s (recorded)"
+    )
 
     if problems:
         print(f"\n{len(problems)} mismatch(es):")

@@ -63,24 +63,38 @@ def main(argv: list[str] | None = None) -> int:
     from mlserve.config import load_config  # noqa: PLC0415
 
     config = load_config()
-    parser = argparse.ArgumentParser(description=__doc__,
-                                     formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
     parser.add_argument("--host", default=str(config.require("serving.host")))
     parser.add_argument("--port", type=int, default=int(config.require("serving.port")))
-    parser.add_argument("--workers", type=int, default=1,
-                        help="uvicorn worker processes; scale here, not with --threads")
-    parser.add_argument("--threads", type=int, default=1,
-                        help="intra-op thread cap for OpenMP/BLAS (default 1; see the "
-                             "module docstring for the measurement behind that default)")
+    parser.add_argument(
+        "--workers",
+        type=int,
+        default=1,
+        help="uvicorn worker processes; scale here, not with --threads",
+    )
+    parser.add_argument(
+        "--threads",
+        type=int,
+        default=1,
+        help="intra-op thread cap for OpenMP/BLAS (default 1; see the "
+        "module docstring for the measurement behind that default)",
+    )
     parser.add_argument("--log-level", default="info")
     args = parser.parse_args(argv)
 
-    print(f"thread caps: {args.threads} | workers: {args.workers} | "
-          f"listening on http://{args.host}:{args.port}")
+    print(
+        f"thread caps: {args.threads} | workers: {args.workers} | "
+        f"listening on http://{args.host}:{args.port}"
+    )
     uvicorn.run(
         "mlserve.serving.main:app",
-        host=args.host, port=args.port, workers=args.workers,
-        log_level=args.log_level, access_log=False,
+        host=args.host,
+        port=args.port,
+        workers=args.workers,
+        log_level=args.log_level,
+        access_log=False,
     )
     return 0
 

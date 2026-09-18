@@ -37,8 +37,9 @@ def test_corrupt_model_artifact_is_reported_not_swallowed(tmp_path, config):
     # joblib surfaces a truncated/garbage payload as whichever parse step fails first,
     # so the type is not fixed. What matters is that it propagates rather than being
     # swallowed into a half-loaded model, and that the loader stays empty.
-    with pytest.raises((IndexError, ValueError, EOFError, TypeError, KeyError,
-                        pickle.UnpicklingError)):
+    with pytest.raises(
+        (IndexError, ValueError, EOFError, TypeError, KeyError, pickle.UnpicklingError)
+    ):
         loader.load()
     assert loader.is_loaded is False
     assert loader.last_error
@@ -132,7 +133,9 @@ def test_inference_failure_is_recorded_for_operators(client, stub_loader):
 def test_service_survives_a_bad_payload_storm(client):
     """Sustained malformed traffic must not degrade the healthy path."""
     bad_payloads = [
-        {}, {"records": []}, {"records": [{}]},
+        {},
+        {"records": []},
+        {"records": [{}]},
         {"records": [{**EXAMPLE_RECORD, "age": "old"}]},
         {"records": [{**EXAMPLE_RECORD, "sex": "?"}]},
         {"records": "nope"},
@@ -174,8 +177,10 @@ def test_a_tampered_raw_file_is_detected(tmp_path):
     for name in SOURCES:
         shutil.copy(raw_dir / name, tmp_path / name)
     with open(tmp_path / "adult.data", "ab") as fh:
-        fh.write(b"\n39, Private, 77516, Bachelors, 13, Never-married, Adm-clerical, "
-                 b"Not-in-family, White, Male, 2174, 0, 40, United-States, <=50K")
+        fh.write(
+            b"\n39, Private, 77516, Bachelors, 13, Never-married, Adm-clerical, "
+            b"Not-in-family, White, Male, 2174, 0, 40, United-States, <=50K"
+        )
     with pytest.raises(ChecksumMismatch, match="sha256"):
         verify_raw_files(tmp_path, strict=True)
 
@@ -210,8 +215,10 @@ def test_dataset_version_changes_when_the_bytes_change(tmp_path):
         shutil.copy(raw_dir / name, tmp_path / name)
     _, _, before = load_raw(tmp_path, strict=False)
     with open(tmp_path / "adult.data", "ab") as fh:
-        fh.write(b"\n25, Private, 226802, 11th, 7, Never-married, Machine-op-inspct, "
-                 b"Own-child, Black, Male, 0, 0, 40, United-States, <=50K")
+        fh.write(
+            b"\n25, Private, 226802, 11th, 7, Never-married, Machine-op-inspct, "
+            b"Own-child, Black, Male, 0, 0, 40, United-States, <=50K"
+        )
     _, _, after = load_raw(tmp_path, strict=False)
     assert before.dataset_id != after.dataset_id
 
@@ -237,9 +244,13 @@ def test_store_handles_a_batch_length_mismatch(tmp_path):
     store = PredictionStore(tmp_path / "p.sqlite")
     with pytest.raises(ValueError):
         store.log_predictions(
-            request_id="r", model_name="m", model_version="1",
-            features=[EXAMPLE_RECORD, EXAMPLE_RECORD], probabilities=[0.1],
-            predictions=[0], latency_ms=1.0,
+            request_id="r",
+            model_name="m",
+            model_version="1",
+            features=[EXAMPLE_RECORD, EXAMPLE_RECORD],
+            probabilities=[0.1],
+            predictions=[0],
+            latency_ms=1.0,
         )
     store.close()
 

@@ -33,9 +33,14 @@ def criteria(config):
 
 
 def evidence(**kwargs):
-    base = dict(candidate_metric=0.94, incumbent_metric=0.92,
-                candidate_p95_latency_ms=3.0, incumbent_p95_latency_ms=3.0,
-                training_rows=26048, validation_errors=0)
+    base = dict(
+        candidate_metric=0.94,
+        incumbent_metric=0.92,
+        candidate_p95_latency_ms=3.0,
+        incumbent_p95_latency_ms=3.0,
+        training_rows=26048,
+        validation_errors=0,
+    )
     base.update(kwargs)
     return CandidateEvidence(**base)
 
@@ -67,8 +72,10 @@ def test_improvement_exactly_at_the_margin_is_promoted(criteria):
 
 def test_a_candidate_much_slower_than_the_incumbent_is_rejected(criteria):
     result = decide(
-        evidence(candidate_p95_latency_ms=3.0 * criteria.max_latency_ratio + 0.5,
-                 incumbent_p95_latency_ms=3.0),
+        evidence(
+            candidate_p95_latency_ms=3.0 * criteria.max_latency_ratio + 0.5,
+            incumbent_p95_latency_ms=3.0,
+        ),
         criteria,
     )
     assert "max_latency_ratio" in result.failed_criteria
@@ -76,8 +83,9 @@ def test_a_candidate_much_slower_than_the_incumbent_is_rejected(criteria):
 
 def test_latency_exactly_at_the_permitted_ratio_is_accepted(criteria):
     assert decide(
-        evidence(candidate_p95_latency_ms=3.0 * criteria.max_latency_ratio,
-                 incumbent_p95_latency_ms=3.0),
+        evidence(
+            candidate_p95_latency_ms=3.0 * criteria.max_latency_ratio, incumbent_p95_latency_ms=3.0
+        ),
         criteria,
     ).promote
 
@@ -101,8 +109,11 @@ def test_a_slow_host_does_not_reject_a_candidate_that_matches_the_incumbent(crit
 def test_the_absolute_ceiling_applies_only_without_an_incumbent(criteria):
     """With no baseline the ratio is undefined, so some bound is better than none."""
     result = decide(
-        evidence(incumbent_metric=None, incumbent_p95_latency_ms=None,
-                 candidate_p95_latency_ms=criteria.max_p95_latency_ms + 1),
+        evidence(
+            incumbent_metric=None,
+            incumbent_p95_latency_ms=None,
+            candidate_p95_latency_ms=criteria.max_p95_latency_ms + 1,
+        ),
         criteria,
     )
     assert "max_p95_latency_ms" in result.failed_criteria
@@ -133,13 +144,20 @@ def test_the_first_model_is_promoted_without_an_incumbent(criteria):
 def test_every_failed_criterion_is_reported(criteria):
     """A rejection must name every problem, not just the first."""
     result = decide(
-        evidence(candidate_metric=0.10, candidate_p95_latency_ms=9999,
-                 incumbent_p95_latency_ms=3.0, training_rows=1, validation_errors=5),
+        evidence(
+            candidate_metric=0.10,
+            candidate_p95_latency_ms=9999,
+            incumbent_p95_latency_ms=3.0,
+            training_rows=1,
+            validation_errors=5,
+        ),
         criteria,
     )
     assert set(result.failed_criteria) >= {
-        "require_clean_validation", "min_training_rows",
-        "min_candidate_roc_auc", "max_latency_ratio",
+        "require_clean_validation",
+        "min_training_rows",
+        "min_candidate_roc_auc",
+        "max_latency_ratio",
     }
     assert len(result.reasons) >= 4
 
@@ -154,8 +172,12 @@ def test_decision_serialises_with_its_evidence_and_criteria(criteria):
 
 
 def test_criteria_come_from_config(config, criteria):
-    assert criteria.min_absolute_improvement == float(config.require("retraining.min_absolute_improvement"))
-    assert criteria.min_candidate_roc_auc == float(config.require("retraining.min_candidate_roc_auc"))
+    assert criteria.min_absolute_improvement == float(
+        config.require("retraining.min_absolute_improvement")
+    )
+    assert criteria.min_candidate_roc_auc == float(
+        config.require("retraining.min_candidate_roc_auc")
+    )
     assert criteria.max_latency_ratio == float(config.require("retraining.max_latency_ratio"))
 
 
@@ -180,9 +202,12 @@ def test_score_on_holdout_matches_a_direct_evaluation(pipeline, small_split):
     from mlserve.models.evaluate import evaluate
 
     holdout = small_split.test.head(800)
-    direct = evaluate(pipeline, holdout[FEATURE_NAMES],
-                      (holdout["income"] == ">50K").astype(int), split="test")
-    assert score_on_holdout(pipeline, holdout)["roc_auc"] == pytest.approx(direct.metrics["roc_auc"])
+    direct = evaluate(
+        pipeline, holdout[FEATURE_NAMES], (holdout["income"] == ">50K").astype(int), split="test"
+    )
+    assert score_on_holdout(pipeline, holdout)["roc_auc"] == pytest.approx(
+        direct.metrics["roc_auc"]
+    )
 
 
 # -------------------------------------------------------------- orchestrator paths
@@ -218,9 +243,13 @@ def test_no_drift_does_not_trigger_retraining(orchestrator, small_split):
     orch, registry, ref = orchestrator
     reference = small_split.train[FEATURE_NAMES]
     current = build_scenario("no_drift", small_split.test, seed=5, n_rows=1500)
-    outcome = orch.run(reference=reference, current=current,
-                       training_data=small_split, holdout=small_split.test,
-                       scenario="no_drift")
+    outcome = orch.run(
+        reference=reference,
+        current=current,
+        training_data=small_split,
+        holdout=small_split.test,
+        scenario="no_drift",
+    )
     assert outcome.triggered is False
     assert outcome.decision is None
     assert registry.production().version == ref.version
@@ -230,9 +259,13 @@ def test_drift_triggers_retraining_and_a_decision(orchestrator, small_split):
     orch, registry, ref = orchestrator
     reference = small_split.train[FEATURE_NAMES]
     current = build_scenario("large_drift", small_split.test, seed=5, n_rows=1500)
-    outcome = orch.run(reference=reference, current=current,
-                       training_data=small_split, holdout=small_split.test,
-                       scenario="large_drift")
+    outcome = orch.run(
+        reference=reference,
+        current=current,
+        training_data=small_split,
+        holdout=small_split.test,
+        scenario="large_drift",
+    )
     assert outcome.triggered is True
     assert "drift detected" in outcome.trigger_reason
     assert outcome.decision is not None
@@ -244,9 +277,13 @@ def test_an_identical_candidate_is_rejected_not_promoted(orchestrator, small_spl
     """Retraining on the same data cannot beat the incumbent by the required margin."""
     orch, registry, ref = orchestrator
     current = build_scenario("large_drift", small_split.test, seed=5, n_rows=1500)
-    outcome = orch.run(reference=small_split.train[FEATURE_NAMES], current=current,
-                       training_data=small_split, holdout=small_split.test,
-                       scenario="large_drift")
+    outcome = orch.run(
+        reference=small_split.train[FEATURE_NAMES],
+        current=current,
+        training_data=small_split,
+        holdout=small_split.test,
+        scenario="large_drift",
+    )
     assert outcome.decision["decision"] == "reject"
     assert "min_absolute_improvement" in outcome.decision["failed_criteria"]
     assert outcome.promoted_version is None
@@ -256,8 +293,12 @@ def test_an_identical_candidate_is_rejected_not_promoted(orchestrator, small_spl
 def test_a_rejected_candidate_is_still_registered_for_inspection(orchestrator, small_split):
     orch, registry, ref = orchestrator
     current = build_scenario("large_drift", small_split.test, seed=5, n_rows=1500)
-    outcome = orch.run(reference=small_split.train[FEATURE_NAMES], current=current,
-                       training_data=small_split, holdout=small_split.test)
+    outcome = orch.run(
+        reference=small_split.train[FEATURE_NAMES],
+        current=current,
+        training_data=small_split,
+        holdout=small_split.test,
+    )
     assert outcome.candidate_version is not None
     candidate = registry.get_version(outcome.candidate_version)
     assert candidate.tags["decision"] == "reject"
@@ -276,10 +317,18 @@ def test_a_better_candidate_is_promoted_and_the_previous_is_kept(retrain_config,
     by `test_a_candidate_much_slower_than_the_incumbent_is_rejected`.
     """
     registry = ModelRegistry(retrain_config)
-    weak_params = {**dict(retrain_config.require("model.params")),
-                   "learning_rate": 0.01, "max_leaf_nodes": 3}
-    weak, weak_run = train_model(retrain_config, split=small_split, params=weak_params,
-                                 evaluate_test=False, run_name="weak-incumbent")
+    weak_params = {
+        **dict(retrain_config.require("model.params")),
+        "learning_rate": 0.01,
+        "max_leaf_nodes": 3,
+    }
+    weak, weak_run = train_model(
+        retrain_config,
+        split=small_split,
+        params=weak_params,
+        evaluate_test=False,
+        run_name="weak-incumbent",
+    )
     X_val, _ = small_split.xy("validation")
     logged = log_training_run(weak, weak_run, retrain_config, input_example=X_val)
     incumbent = registry.register(logged.model_uri, tags={"role": "weak-incumbent"})
@@ -287,9 +336,13 @@ def test_a_better_candidate_is_promoted_and_the_previous_is_kept(retrain_config,
 
     orch = RetrainingOrchestrator(retrain_config, registry=registry)
     current = build_scenario("large_drift", small_split.test, seed=5, n_rows=1500)
-    outcome = orch.run(reference=small_split.train[FEATURE_NAMES], current=current,
-                       training_data=small_split, holdout=small_split.test,
-                       scenario="large_drift")
+    outcome = orch.run(
+        reference=small_split.train[FEATURE_NAMES],
+        current=current,
+        training_data=small_split,
+        holdout=small_split.test,
+        scenario="large_drift",
+    )
 
     assert outcome.decision["decision"] == "promote", outcome.decision["reasons"]
     assert outcome.promoted_version == outcome.candidate_version
@@ -304,19 +357,28 @@ def test_rollback_after_a_promotion_restores_the_incumbent(retrain_config, small
     registry = ModelRegistry(retrain_config)
     # Weakened by learning rate, not tree count, so inference cost is unchanged --
     # see test_a_better_candidate_is_promoted_and_the_previous_is_kept.
-    weak_params = {**dict(retrain_config.require("model.params")),
-                   "learning_rate": 0.01, "max_leaf_nodes": 3}
+    weak_params = {
+        **dict(retrain_config.require("model.params")),
+        "learning_rate": 0.01,
+        "max_leaf_nodes": 3,
+    }
     X_val, _ = small_split.xy("validation")
-    weak, weak_run = train_model(retrain_config, split=small_split, params=weak_params,
-                                 evaluate_test=False, run_name="weak")
+    weak, weak_run = train_model(
+        retrain_config, split=small_split, params=weak_params, evaluate_test=False, run_name="weak"
+    )
     incumbent = registry.register(
-        log_training_run(weak, weak_run, retrain_config, input_example=X_val).model_uri)
+        log_training_run(weak, weak_run, retrain_config, input_example=X_val).model_uri
+    )
     registry.promote(incumbent.version)
 
     orch = RetrainingOrchestrator(retrain_config, registry=registry)
     current = build_scenario("large_drift", small_split.test, seed=5, n_rows=1500)
-    outcome = orch.run(reference=small_split.train[FEATURE_NAMES], current=current,
-                       training_data=small_split, holdout=small_split.test)
+    outcome = orch.run(
+        reference=small_split.train[FEATURE_NAMES],
+        current=current,
+        training_data=small_split,
+        holdout=small_split.test,
+    )
     assert outcome.promoted_version is not None
 
     result = orch.rollback()
@@ -325,7 +387,9 @@ def test_rollback_after_a_promotion_restores_the_incumbent(retrain_config, small
     assert result["seconds"] >= 0.0
 
 
-def test_a_failed_retraining_is_reported_and_promotes_nothing(orchestrator, small_split, monkeypatch):
+def test_a_failed_retraining_is_reported_and_promotes_nothing(
+    orchestrator, small_split, monkeypatch
+):
     """Training that raises must be caught, recorded, and leave production alone."""
     orch, registry, ref = orchestrator
 
@@ -334,8 +398,12 @@ def test_a_failed_retraining_is_reported_and_promotes_nothing(orchestrator, smal
 
     monkeypatch.setattr("mlserve.retraining.orchestrator.train_model", explode)
     current = build_scenario("large_drift", small_split.test, seed=5, n_rows=1500)
-    outcome = orch.run(reference=small_split.train[FEATURE_NAMES], current=current,
-                       training_data=small_split, holdout=small_split.test)
+    outcome = orch.run(
+        reference=small_split.train[FEATURE_NAMES],
+        current=current,
+        training_data=small_split,
+        holdout=small_split.test,
+    )
 
     assert outcome.triggered is True
     assert outcome.error is not None
@@ -349,9 +417,13 @@ def test_schema_break_triggers_retraining(orchestrator, small_split):
     """A missing column must trigger the workflow even with no statistical drift."""
     orch, registry, ref = orchestrator
     current = build_scenario("missing_feature", small_split.test, seed=5, n_rows=1500)
-    outcome = orch.run(reference=small_split.train[FEATURE_NAMES], current=current,
-                       training_data=small_split, holdout=small_split.test,
-                       scenario="missing_feature")
+    outcome = orch.run(
+        reference=small_split.train[FEATURE_NAMES],
+        current=current,
+        training_data=small_split,
+        holdout=small_split.test,
+        scenario="missing_feature",
+    )
     assert outcome.triggered is True
     assert outcome.drift["schema_failures"]
 
@@ -359,9 +431,14 @@ def test_schema_break_triggers_retraining(orchestrator, small_split):
 def test_force_retrains_without_drift(orchestrator, small_split):
     orch, _, _ = orchestrator
     current = build_scenario("no_drift", small_split.test, seed=5, n_rows=1500)
-    outcome = orch.run(reference=small_split.train[FEATURE_NAMES], current=current,
-                       training_data=small_split, holdout=small_split.test,
-                       force=True, register=False)
+    outcome = orch.run(
+        reference=small_split.train[FEATURE_NAMES],
+        current=current,
+        training_data=small_split,
+        holdout=small_split.test,
+        force=True,
+        register=False,
+    )
     assert outcome.triggered is True
     assert outcome.trigger_reason == "forced by caller"
     assert outcome.decision is not None
@@ -372,5 +449,11 @@ def test_outcome_serialises(orchestrator, small_split):
 
     orch, _, _ = orchestrator
     current = build_scenario("no_drift", small_split.test, seed=5, n_rows=1500)
-    json.dumps(orch.run(reference=small_split.train[FEATURE_NAMES], current=current,
-                        training_data=small_split, holdout=small_split.test).to_dict())
+    json.dumps(
+        orch.run(
+            reference=small_split.train[FEATURE_NAMES],
+            current=current,
+            training_data=small_split,
+            holdout=small_split.test,
+        ).to_dict()
+    )

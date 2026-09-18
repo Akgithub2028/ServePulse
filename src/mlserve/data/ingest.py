@@ -95,9 +95,9 @@ def _read_raw(path: Path, *, skiprows: int) -> pd.DataFrame:
         names=RAW_COLUMNS,
         skipinitialspace=True,
         skiprows=skiprows,
-        na_values=[],          # keep '?' as a literal token; we handle it explicitly
+        na_values=[],  # keep '?' as a literal token; we handle it explicitly
         keep_default_na=False,
-        dtype=str,             # parse everything as text first, then coerce deliberately
+        dtype=str,  # parse everything as text first, then coerce deliberately
         engine="c",
     )
     # The raw files end with a blank line, which pandas turns into an all-empty row.
@@ -140,7 +140,9 @@ def _clean(frame: pd.DataFrame) -> pd.DataFrame:
     return out.reset_index(drop=True)
 
 
-def load_raw(raw_dir: str | Path = "data/raw", *, strict: bool = True) -> tuple[pd.DataFrame, pd.DataFrame, DatasetVersion]:
+def load_raw(
+    raw_dir: str | Path = "data/raw", *, strict: bool = True
+) -> tuple[pd.DataFrame, pd.DataFrame, DatasetVersion]:
     """Load the development and held-out test frames plus their joint version id."""
     raw_dir = Path(raw_dir)
     checksums = verify_raw_files(raw_dir, strict=strict)

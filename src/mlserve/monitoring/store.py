@@ -160,8 +160,15 @@ class PredictionStore:
         batch_size = len(features)
         rows = [
             (
-                request_id, ts, ts_iso, model_name, model_version,
-                float(prob), int(pred), float(latency_ms), batch_size,
+                request_id,
+                ts,
+                ts_iso,
+                model_name,
+                model_version,
+                float(prob),
+                int(pred),
+                float(latency_ms),
+                batch_size,
                 *[record.get(name) for name in FEATURE_NAMES],
             )
             for record, prob, pred in zip(features, probabilities, predictions, strict=True)
@@ -172,8 +179,14 @@ class PredictionStore:
             cur.executemany(_INSERT_PREDICTION, rows)
         return len(rows)
 
-    def log_event(self, kind: str, *, request_id: str | None = None,
-                  status_code: int | None = None, detail: str | None = None) -> None:
+    def log_event(
+        self,
+        kind: str,
+        *,
+        request_id: str | None = None,
+        status_code: int | None = None,
+        detail: str | None = None,
+    ) -> None:
         if not self.enabled:
             return
         ts, ts_iso = _now()
@@ -198,10 +211,15 @@ class PredictionStore:
                 "n_features, n_drifted, drift_detected, elapsed_seconds, payload) "
                 "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 (
-                    ts, ts_iso, scenario or report.get("scenario"),
-                    report.get("reference_rows"), report.get("current_rows"),
-                    report.get("n_features"), report.get("n_drifted"),
-                    int(bool(report.get("drift_detected"))), report.get("elapsed_seconds"),
+                    ts,
+                    ts_iso,
+                    scenario or report.get("scenario"),
+                    report.get("reference_rows"),
+                    report.get("current_rows"),
+                    report.get("n_features"),
+                    report.get("n_drifted"),
+                    int(bool(report.get("drift_detected"))),
+                    report.get("elapsed_seconds"),
                     json.dumps(report, default=str),
                 ),
             )
@@ -216,7 +234,9 @@ class PredictionStore:
         with self._lock:
             return int(self._conn.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0])
 
-    def recent_features(self, limit: int = 2000, *, model_version: str | None = None) -> pd.DataFrame:
+    def recent_features(
+        self, limit: int = 2000, *, model_version: str | None = None
+    ) -> pd.DataFrame:
         """The most recent scored feature vectors -- the 'current window' for drift."""
         if not self.enabled or self._conn is None:
             return pd.DataFrame(columns=FEATURE_NAMES)
@@ -243,7 +263,8 @@ class PredictionStore:
         with self._lock:
             row = self._conn.execute(
                 "SELECT COUNT(*), AVG(probability), MIN(probability), MAX(probability), "
-                f"AVG(latency_ms) FROM predictions{clause}", params
+                f"AVG(latency_ms) FROM predictions{clause}",
+                params,
             ).fetchone()
             versions = self._conn.execute(
                 f"SELECT model_version, COUNT(*) FROM predictions{clause} GROUP BY model_version",

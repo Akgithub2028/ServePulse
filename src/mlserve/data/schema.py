@@ -116,13 +116,47 @@ RELATIONSHIP = ("Wife", "Own-child", "Husband", "Not-in-family", "Other-relative
 RACE = ("White", "Asian-Pac-Islander", "Amer-Indian-Eskimo", "Other", "Black")
 SEX = ("Female", "Male")
 NATIVE_COUNTRY = (
-    "United-States", "Cambodia", "England", "Puerto-Rico", "Canada", "Germany",
-    "Outlying-US(Guam-USVI-etc)", "India", "Japan", "Greece", "South", "China",
-    "Cuba", "Iran", "Honduras", "Philippines", "Italy", "Poland", "Jamaica",
-    "Vietnam", "Mexico", "Portugal", "Ireland", "France", "Dominican-Republic",
-    "Laos", "Ecuador", "Taiwan", "Haiti", "Columbia", "Hungary", "Guatemala",
-    "Nicaragua", "Scotland", "Thailand", "Yugoslavia", "El-Salvador",
-    "Trinadad&Tobago", "Peru", "Hong", "Holand-Netherlands",
+    "United-States",
+    "Cambodia",
+    "England",
+    "Puerto-Rico",
+    "Canada",
+    "Germany",
+    "Outlying-US(Guam-USVI-etc)",
+    "India",
+    "Japan",
+    "Greece",
+    "South",
+    "China",
+    "Cuba",
+    "Iran",
+    "Honduras",
+    "Philippines",
+    "Italy",
+    "Poland",
+    "Jamaica",
+    "Vietnam",
+    "Mexico",
+    "Portugal",
+    "Ireland",
+    "France",
+    "Dominican-Republic",
+    "Laos",
+    "Ecuador",
+    "Taiwan",
+    "Haiti",
+    "Columbia",
+    "Hungary",
+    "Guatemala",
+    "Nicaragua",
+    "Scotland",
+    "Thailand",
+    "Yugoslavia",
+    "El-Salvador",
+    "Trinadad&Tobago",
+    "Peru",
+    "Hong",
+    "Holand-Netherlands",
 )
 
 #: ``?`` is the raw file's missing marker for the three self-reported categoricals.
@@ -130,41 +164,66 @@ MISSING_MARKER = "?"
 MISSING_CATEGORY = "__missing__"
 
 FEATURES: list[FeatureSpec] = [
-    FeatureSpec("age", FeatureKind.NUMERIC, "Age of the respondent in years.", minimum=17, maximum=90),
     FeatureSpec(
-        "workclass", FeatureKind.CATEGORICAL,
+        "age", FeatureKind.NUMERIC, "Age of the respondent in years.", minimum=17, maximum=90
+    ),
+    FeatureSpec(
+        "workclass",
+        FeatureKind.CATEGORICAL,
         "Employment sector. Self-reported; '?' means not answered.",
-        allowed=WORKCLASS, nullable=True,
+        allowed=WORKCLASS,
+        nullable=True,
     ),
     FeatureSpec(
-        "education_num", FeatureKind.NUMERIC,
+        "education_num",
+        FeatureKind.NUMERIC,
         "Highest education level as an ordinal rank (1=Preschool .. 16=Doctorate).",
-        minimum=1, maximum=16,
+        minimum=1,
+        maximum=16,
     ),
-    FeatureSpec("marital_status", FeatureKind.CATEGORICAL, "Marital status.", allowed=MARITAL_STATUS),
     FeatureSpec(
-        "occupation", FeatureKind.CATEGORICAL,
+        "marital_status", FeatureKind.CATEGORICAL, "Marital status.", allowed=MARITAL_STATUS
+    ),
+    FeatureSpec(
+        "occupation",
+        FeatureKind.CATEGORICAL,
         "Occupation category. Self-reported; '?' means not answered.",
-        allowed=OCCUPATION, nullable=True,
+        allowed=OCCUPATION,
+        nullable=True,
     ),
-    FeatureSpec("relationship", FeatureKind.CATEGORICAL, "Role within the household.", allowed=RELATIONSHIP),
+    FeatureSpec(
+        "relationship", FeatureKind.CATEGORICAL, "Role within the household.", allowed=RELATIONSHIP
+    ),
     FeatureSpec("race", FeatureKind.CATEGORICAL, "Self-identified race.", allowed=RACE),
-    FeatureSpec("sex", FeatureKind.CATEGORICAL, "Self-identified sex as recorded by the 1994 census.", allowed=SEX),
     FeatureSpec(
-        "capital_gain", FeatureKind.NUMERIC,
+        "sex",
+        FeatureKind.CATEGORICAL,
+        "Self-identified sex as recorded by the 1994 census.",
+        allowed=SEX,
+    ),
+    FeatureSpec(
+        "capital_gain",
+        FeatureKind.NUMERIC,
         "Capital gains in USD for the year. Heavily zero-inflated and right-skewed.",
-        minimum=0, maximum=99999,
+        minimum=0,
+        maximum=99999,
     ),
     FeatureSpec(
-        "capital_loss", FeatureKind.NUMERIC,
+        "capital_loss",
+        FeatureKind.NUMERIC,
         "Capital losses in USD for the year. Heavily zero-inflated.",
-        minimum=0, maximum=4356,
+        minimum=0,
+        maximum=4356,
     ),
-    FeatureSpec("hours_per_week", FeatureKind.NUMERIC, "Usual hours worked per week.", minimum=1, maximum=99),
     FeatureSpec(
-        "native_country", FeatureKind.CATEGORICAL,
+        "hours_per_week", FeatureKind.NUMERIC, "Usual hours worked per week.", minimum=1, maximum=99
+    ),
+    FeatureSpec(
+        "native_country",
+        FeatureKind.CATEGORICAL,
         "Country of origin. Self-reported; '?' means not answered.",
-        allowed=NATIVE_COUNTRY, nullable=True,
+        allowed=NATIVE_COUNTRY,
+        nullable=True,
     ),
 ]
 

@@ -56,8 +56,12 @@ logger = get_logger("mlserve.api")
 
 # Starlette renamed 422 to UNPROCESSABLE_CONTENT (RFC 9110); resolve it once so the
 # service works on both the old and the new constant without emitting a warning.
-HTTP_422 = getattr(status, "HTTP_422_UNPROCESSABLE_CONTENT", None) or status.HTTP_422_UNPROCESSABLE_ENTITY
-HTTP_413 = getattr(status, "HTTP_413_CONTENT_TOO_LARGE", None) or status.HTTP_413_REQUEST_ENTITY_TOO_LARGE
+HTTP_422 = (
+    getattr(status, "HTTP_422_UNPROCESSABLE_CONTENT", None) or status.HTTP_422_UNPROCESSABLE_ENTITY
+)
+HTTP_413 = (
+    getattr(status, "HTTP_413_CONTENT_TOO_LARGE", None) or status.HTTP_413_REQUEST_ENTITY_TOO_LARGE
+)
 
 REQUEST_ID_HEADER = "X-Request-ID"
 MODEL_VERSION_HEADER = "X-Model-Version"
@@ -71,16 +75,26 @@ class ServiceState:
     previous one's metrics or model leaking into it.
     """
 
-    def __init__(self, config: Config, *, loader: ModelLoader | None = None,
-                 store: PredictionStore | None = None, metrics: ServingMetrics | None = None):
+    def __init__(
+        self,
+        config: Config,
+        *,
+        loader: ModelLoader | None = None,
+        store: PredictionStore | None = None,
+        metrics: ServingMetrics | None = None,
+    ):
         self.config = config
         self.started_at = time.time()
         self.threshold = float(config.require("evaluation.decision_threshold"))
         self.max_batch_size = int(config.require("serving.max_batch_size"))
         self.loader = loader or ModelLoader(config)
-        self.store = store if store is not None else PredictionStore(
-            config.path("paths.prediction_db"),
-            enabled=bool(config.require("serving.log_predictions")),
+        self.store = (
+            store
+            if store is not None
+            else PredictionStore(
+                config.path("paths.prediction_db"),
+                enabled=bool(config.require("serving.log_predictions")),
+            )
         )
         self.metrics = metrics or ServingMetrics(
             latency_buckets=tuple(config.require("monitoring.latency_buckets_seconds")),
@@ -99,14 +113,18 @@ class ServiceState:
             self.metrics.model_loaded.set(0)
             return
         self.metrics.set_model(
-            name=model.model_name, version=model.model_version, alias=model.model_alias,
-            dataset_version=model.dataset_version, git_commit=model.git_commit,
+            name=model.model_name,
+            version=model.model_version,
+            alias=model.model_alias,
+            dataset_version=model.dataset_version,
+            git_commit=model.git_commit,
         )
         self.metrics.model_loaded.set(1)
 
 
-def _error_response(request_id: str, code: int, error_type: str, message: str,
-                    details: list[dict] | None = None) -> JSONResponse:
+def _error_response(
+    request_id: str, code: int, error_type: str, message: str, details: list[dict] | None = None
+) -> JSONResponse:
     body = ErrorResponse(
         request_id=request_id,
         error=ErrorDetail(type=error_type, message=message, details=details or []),
@@ -121,8 +139,12 @@ def _error_response(request_id: str, code: int, error_type: str, message: str,
 router = APIRouter()
 
 
-@router.get("/health", response_model=HealthResponse, tags=["operations"],
-            summary="Liveness and model-loaded state")
+@router.get(
+    "/health",
+    response_model=HealthResponse,
+    tags=["operations"],
+    summary="Liveness and model-loaded state",
+)
 def health(request: Request) -> HealthResponse:
     """200 whenever the process is alive.
 
@@ -148,7 +170,9 @@ def ready(request: Request) -> Response:
     rid = request_id_var.get() or "unknown"
     if state.loader.model is None:
         return _error_response(
-            rid, status.HTTP_503_SERVICE_UNAVAILABLE, "model_not_loaded",
+            rid,
+            status.HTTP_503_SERVICE_UNAVAILABLE,
+            "model_not_loaded",
             state.loader.last_error or "no model is loaded",
         )
     return JSONResponse(
@@ -157,27 +181,37 @@ def ready(request: Request) -> Response:
     )
 
 
-@router.get("/model-info", response_model=ModelInfoResponse, tags=["model"],
-            summary="Provenance of the model currently being served")
+@router.get(
+    "/model-info",
+    response_model=ModelInfoResponse,
+    tags=["model"],
+    summary="Provenance of the model currently being served",
+)
 def model_info(request: Request):
     state: ServiceState = request.app.state.service
     rid = request_id_var.get() or "unknown"
     model = state.loader.model
     if model is None:
         return _error_response(
-            rid, status.HTTP_503_SERVICE_UNAVAILABLE, "model_not_loaded",
+            rid,
+            status.HTTP_503_SERVICE_UNAVAILABLE,
+            "model_not_loaded",
             state.loader.last_error or "no model is loaded",
         )
     return ModelInfoResponse(**model.to_info())
 
 
-@router.post("/predict", response_model=PredictResponse, tags=["model"],
-             summary="Score one or more records",
-             responses={
-                 422: {"model": ErrorResponse, "description": "Payload violates the data contract"},
-                 413: {"model": ErrorResponse, "description": "Batch exceeds the configured maximum"},
-                 503: {"model": ErrorResponse, "description": "No model is loaded"},
-             })
+@router.post(
+    "/predict",
+    response_model=PredictResponse,
+    tags=["model"],
+    summary="Score one or more records",
+    responses={
+        422: {"model": ErrorResponse, "description": "Payload violates the data contract"},
+        413: {"model": ErrorResponse, "description": "Batch exceeds the configured maximum"},
+        503: {"model": ErrorResponse, "description": "No model is loaded"},
+    },
+)
 def predict(payload: PredictRequest, request: Request):
     state: ServiceState = request.app.state.service
     rid = request_id_var.get() or str(uuid.uuid4())
@@ -185,10 +219,16 @@ def predict(payload: PredictRequest, request: Request):
 
     if len(payload.records) > state.max_batch_size:
         state.metrics.observe_error("/predict", "payload_too_large")
-        state.store.log_event("payload_too_large", request_id=rid, status_code=413,
-                              detail=f"{len(payload.records)} records")
+        state.store.log_event(
+            "payload_too_large",
+            request_id=rid,
+            status_code=413,
+            detail=f"{len(payload.records)} records",
+        )
         return _error_response(
-            rid, HTTP_413, "payload_too_large",
+            rid,
+            HTTP_413,
+            "payload_too_large",
             f"batch of {len(payload.records)} exceeds the maximum of {state.max_batch_size}",
         )
 
@@ -197,7 +237,9 @@ def predict(payload: PredictRequest, request: Request):
     except ModelNotLoadedError as exc:
         state.metrics.observe_error("/predict", "model_not_loaded")
         state.store.log_event("model_not_loaded", request_id=rid, status_code=503, detail=str(exc))
-        return _error_response(rid, status.HTTP_503_SERVICE_UNAVAILABLE, "model_not_loaded", str(exc))
+        return _error_response(
+            rid, status.HTTP_503_SERVICE_UNAVAILABLE, "model_not_loaded", str(exc)
+        )
 
     records = [r.model_dump() for r in payload.records]
     frame = pd.DataFrame(records, columns=FEATURE_NAMES)
@@ -207,10 +249,16 @@ def predict(payload: PredictRequest, request: Request):
     except Exception as exc:  # pragma: no cover - exercised by failure injection
         logger.exception("prediction failed", extra={"error_type": type(exc).__name__})
         state.metrics.observe_error("/predict", "inference_error")
-        state.store.log_event("inference_error", request_id=rid, status_code=500,
-                              detail=f"{type(exc).__name__}: {exc}")
+        state.store.log_event(
+            "inference_error",
+            request_id=rid,
+            status_code=500,
+            detail=f"{type(exc).__name__}: {exc}",
+        )
         return _error_response(
-            rid, status.HTTP_500_INTERNAL_SERVER_ERROR, "internal_error",
+            rid,
+            status.HTTP_500_INTERNAL_SERVER_ERROR,
+            "internal_error",
             "the model failed to score this batch",
         )
 
@@ -222,14 +270,24 @@ def predict(payload: PredictRequest, request: Request):
     state.metrics.observe_predictions(model.model_version, probs, hard)
     state.metrics.observe_features(records)
     state.store.log_predictions(
-        request_id=rid, model_name=model.model_name, model_version=model.model_version,
-        features=records, probabilities=probs, predictions=hard, latency_ms=elapsed_ms,
+        request_id=rid,
+        model_name=model.model_name,
+        model_version=model.model_version,
+        features=records,
+        probabilities=probs,
+        predictions=hard,
+        latency_ms=elapsed_ms,
     )
 
-    logger.info("prediction served", extra={
-        "endpoint": "/predict", "n_records": len(records),
-        "model_version": model.model_version, "latency_ms": round(elapsed_ms, 3),
-    })
+    logger.info(
+        "prediction served",
+        extra={
+            "endpoint": "/predict",
+            "n_records": len(records),
+            "model_version": model.model_version,
+            "latency_ms": round(elapsed_ms, 3),
+        },
+    )
 
     return PredictResponse(
         request_id=rid,
@@ -239,16 +297,16 @@ def predict(payload: PredictRequest, request: Request):
         threshold=threshold,
         n_records=len(records),
         predictions=[
-            Prediction(probability=p, prediction=h,
-                       label=POSITIVE_LABEL if h else NEGATIVE_LABEL)
+            Prediction(probability=p, prediction=h, label=POSITIVE_LABEL if h else NEGATIVE_LABEL)
             for p, h in zip(probs, hard, strict=True)
         ],
         latency_ms=round(elapsed_ms, 3),
     )
 
 
-@router.get("/metrics", tags=["operations"], summary="Prometheus exposition",
-            response_class=Response)
+@router.get(
+    "/metrics", tags=["operations"], summary="Prometheus exposition", response_class=Response
+)
 def metrics(request: Request) -> Response:
     state: ServiceState = request.app.state.service
     state.metrics.refresh_resource_gauges(state.uptime)
@@ -257,8 +315,9 @@ def metrics(request: Request) -> Response:
     return Response(content=state.metrics.render(), media_type=CONTENT_TYPE)
 
 
-@router.get("/monitoring/summary", tags=["operations"],
-            summary="Recent traffic and prediction distribution")
+@router.get(
+    "/monitoring/summary", tags=["operations"], summary="Recent traffic and prediction distribution"
+)
 def monitoring_summary(request: Request, window_seconds: float | None = None) -> dict:
     state: ServiceState = request.app.state.service
     summary = state.store.summary(window_seconds)
@@ -268,8 +327,11 @@ def monitoring_summary(request: Request, window_seconds: float | None = None) ->
     return summary
 
 
-@router.post("/admin/reload", tags=["operations"],
-             summary="Re-resolve the registry alias and hot-swap the model")
+@router.post(
+    "/admin/reload",
+    tags=["operations"],
+    summary="Re-resolve the registry alias and hot-swap the model",
+)
 def admin_reload(request: Request) -> JSONResponse:
     """Pick up a promotion or rollback without restarting the process.
 
@@ -286,16 +348,22 @@ def admin_reload(request: Request) -> JSONResponse:
         logger.info("model reloaded", extra=details)
     else:
         state.metrics.record_load(outcome="failure", seconds=details["seconds"])
-        state.store.log_event("model_reload_failed", request_id=rid, status_code=503,
-                              detail=details.get("error"))
+        state.store.log_event(
+            "model_reload_failed", request_id=rid, status_code=503, detail=details.get("error")
+        )
         logger.error("model reload failed", extra=details)
         return JSONResponse(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, content=details)
     return JSONResponse(status_code=200, content=details)
 
 
-def create_app(config: Config | None = None, *, loader: ModelLoader | None = None,
-               store: PredictionStore | None = None, metrics: ServingMetrics | None = None,
-               load_on_startup: bool = True) -> FastAPI:
+def create_app(
+    config: Config | None = None,
+    *,
+    loader: ModelLoader | None = None,
+    store: PredictionStore | None = None,
+    metrics: ServingMetrics | None = None,
+    load_on_startup: bool = True,
+) -> FastAPI:
     """Build a service instance. Every collaborator is injectable, for testability."""
     config = config or load_config()
     configure_logging()
@@ -310,10 +378,14 @@ def create_app(config: Config | None = None, *, loader: ModelLoader | None = Non
             if model is not None:
                 state.metrics.record_load(outcome="success", seconds=elapsed)
                 state.publish_model_identity()
-                logger.info("model loaded at startup", extra={
-                    "model_version": model.model_version, "load_seconds": round(elapsed, 4),
-                    "source": model.source,
-                })
+                logger.info(
+                    "model loaded at startup",
+                    extra={
+                        "model_version": model.model_version,
+                        "load_seconds": round(elapsed, 4),
+                        "source": model.source,
+                    },
+                )
             else:
                 state.metrics.record_load(outcome="failure", seconds=elapsed)
                 logger.error("startup model load failed", extra={"error": state.loader.last_error})
@@ -350,7 +422,9 @@ def create_app(config: Config | None = None, *, loader: ModelLoader | None = Non
             request_id_var.reset(token)
             return _error_response(rid, 500, "internal_error", "an unexpected error occurred")
         elapsed = time.perf_counter() - start
-        state.metrics.observe_request(request.url.path, request.method, response.status_code, elapsed)
+        state.metrics.observe_request(
+            request.url.path, request.method, response.status_code, elapsed
+        )
         response.headers[REQUEST_ID_HEADER] = rid
         model = state.loader.model
         if model is not None:
@@ -372,13 +446,23 @@ def create_app(config: Config | None = None, *, loader: ModelLoader | None = Non
             for err in exc.errors()[:20]
         ]
         state.metrics.observe_error(request.url.path, "validation_error")
-        state.store.log_event("validation_error", request_id=rid, status_code=422,
-                              detail=f"{len(exc.errors())} field error(s)")
-        logger.warning("request rejected", extra={
-            "endpoint": request.url.path, "n_errors": len(exc.errors()),
-        })
+        state.store.log_event(
+            "validation_error",
+            request_id=rid,
+            status_code=422,
+            detail=f"{len(exc.errors())} field error(s)",
+        )
+        logger.warning(
+            "request rejected",
+            extra={
+                "endpoint": request.url.path,
+                "n_errors": len(exc.errors()),
+            },
+        )
         return _error_response(
-            rid, HTTP_422, "validation_error",
+            rid,
+            HTTP_422,
+            "validation_error",
             f"the request payload violates the data contract ({len(exc.errors())} error(s))",
             details,
         )

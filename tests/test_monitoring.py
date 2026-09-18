@@ -73,9 +73,13 @@ def test_metrics_endpoint_uses_the_prometheus_content_type(client):
 
 def test_counters_move_with_traffic(client):
     client.post("/predict", json={"records": [EXAMPLE_RECORD]})
-    before = metric_value(client.get("/metrics").text, 'mlserve_predictions_total{model_version="7"}')
+    before = metric_value(
+        client.get("/metrics").text, 'mlserve_predictions_total{model_version="7"}'
+    )
     client.post("/predict", json={"records": [EXAMPLE_RECORD] * 10})
-    after = metric_value(client.get("/metrics").text, 'mlserve_predictions_total{model_version="7"}')
+    after = metric_value(
+        client.get("/metrics").text, 'mlserve_predictions_total{model_version="7"}'
+    )
     assert after - before == 10
 
 
@@ -83,7 +87,10 @@ def test_predictions_counter_counts_records_not_requests(client):
     client.post("/predict", json={"records": [EXAMPLE_RECORD] * 7})
     text = client.get("/metrics").text
     assert metric_value(text, 'mlserve_predictions_total{model_version="7"}') == 7
-    assert metric_value(text, 'mlserve_requests_total{endpoint="/predict",method="POST",status="200"}') == 1
+    assert (
+        metric_value(text, 'mlserve_requests_total{endpoint="/predict",method="POST",status="200"}')
+        == 1
+    )
 
 
 def test_latency_histogram_records_observations(client):
@@ -116,7 +123,12 @@ def test_invalid_traffic_increments_errors_but_not_predictions(client):
     for _ in range(5):
         client.post("/predict", json={"records": [{**EXAMPLE_RECORD, "sex": "Nope"}]})
     after = client.get("/metrics").text
-    assert metric_value(after, 'mlserve_errors_total{endpoint="/predict",error_type="validation_error"}') == 5
+    assert (
+        metric_value(
+            after, 'mlserve_errors_total{endpoint="/predict",error_type="validation_error"}'
+        )
+        == 5
+    )
     assert metric_value(after, 'mlserve_predictions_total{model_version="7"}') == predictions_before
 
 
@@ -126,8 +138,12 @@ def test_error_rate_is_computable_from_the_exposed_series(client):
     for _ in range(2):
         client.post("/predict", json={"records": [{}]})
     text = client.get("/metrics").text
-    ok = metric_value(text, 'mlserve_requests_total{endpoint="/predict",method="POST",status="200"}')
-    bad = metric_value(text, 'mlserve_requests_total{endpoint="/predict",method="POST",status="422"}')
+    ok = metric_value(
+        text, 'mlserve_requests_total{endpoint="/predict",method="POST",status="200"}'
+    )
+    bad = metric_value(
+        text, 'mlserve_requests_total{endpoint="/predict",method="POST",status="422"}'
+    )
     assert ok == 3 and bad == 2
     assert bad / (ok + bad) == pytest.approx(0.4)
 
@@ -226,8 +242,16 @@ def test_store_can_be_disabled(tmp_path):
     from mlserve.monitoring.store import PredictionStore
 
     store = PredictionStore(tmp_path / "off.sqlite", enabled=False)
-    assert store.log_predictions(
-        request_id="r", model_name="m", model_version="1",
-        features=[EXAMPLE_RECORD], probabilities=[0.5], predictions=[1], latency_ms=1.0,
-    ) == 0
+    assert (
+        store.log_predictions(
+            request_id="r",
+            model_name="m",
+            model_version="1",
+            features=[EXAMPLE_RECORD],
+            probabilities=[0.5],
+            predictions=[1],
+            latency_ms=1.0,
+        )
+        == 0
+    )
     assert store.summary() == {"enabled": False}

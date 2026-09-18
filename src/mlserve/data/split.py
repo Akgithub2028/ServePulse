@@ -136,10 +136,14 @@ def overlap_report(split: Split) -> dict:
     val_idx = set(split.validation_source_index)
 
     feature_cols = FEATURE_NAMES
-    fp = {name: row_fingerprints(getattr(split, name), feature_cols + [TARGET])
-          for name in ("train", "validation", "test")}
-    feat_fp = {name: row_fingerprints(getattr(split, name), feature_cols)
-               for name in ("train", "validation", "test")}
+    fp = {
+        name: row_fingerprints(getattr(split, name), feature_cols + [TARGET])
+        for name in ("train", "validation", "test")
+    }
+    feat_fp = {
+        name: row_fingerprints(getattr(split, name), feature_cols)
+        for name in ("train", "validation", "test")
+    }
 
     def rate(a: str, b: str, table: dict[str, set[int]]) -> float:
         other = getattr(split, b)

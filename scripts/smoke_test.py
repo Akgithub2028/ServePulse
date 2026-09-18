@@ -39,9 +39,12 @@ def check(name: str, condition: bool, detail: str = "") -> None:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--port", type=int, default=None)
-    parser.add_argument("--allow-degraded", action="store_true",
-                        help="pass when no model is registered, checking only that the "
-                             "service boots and reports itself degraded")
+    parser.add_argument(
+        "--allow-degraded",
+        action="store_true",
+        help="pass when no model is registered, checking only that the "
+        "service boots and reports itself degraded",
+    )
     args = parser.parse_args(argv)
 
     config = load_config()
@@ -50,8 +53,7 @@ def main(argv: list[str] | None = None) -> int:
     results_dir = config.path("paths.results_dir") / "serving"
     results_dir.mkdir(parents=True, exist_ok=True)
 
-    server = ServerProcess(host, port, log_path=results_dir / "smoke_server.log",
-                           thread_pin=1)
+    server = ServerProcess(host, port, log_path=results_dir / "smoke_server.log", thread_pin=1)
     server.start()
     print(f"server ready in {server.cold_start_seconds:.3f}s at {server.base_url}\n")
 
@@ -78,50 +80,68 @@ def main(argv: list[str] | None = None) -> int:
             check("GET /model-info is 200", info.status_code == 200, info.text)
             info_body = info.json()
             findings["model_info"] = info_body
-            check("model-info lists the contract columns",
-                  info_body["input_columns"] == FEATURE_NAMES)
-            check("model-info carries a dataset version",
-                  bool(info_body.get("dataset_version")), str(info_body))
+            check(
+                "model-info lists the contract columns", info_body["input_columns"] == FEATURE_NAMES
+            )
+            check(
+                "model-info carries a dataset version",
+                bool(info_body.get("dataset_version")),
+                str(info_body),
+            )
 
             single = client.post("/predict", json={"records": [EXAMPLE_RECORD]})
             check("POST /predict is 200", single.status_code == 200, single.text)
             prediction = single.json()
             findings["prediction"] = prediction
-            check("prediction returns a probability in [0, 1]",
-                  0.0 <= prediction["predictions"][0]["probability"] <= 1.0)
-            check("response carries the served model version",
-                  prediction["model_version"] == info_body["model_version"])
+            check(
+                "prediction returns a probability in [0, 1]",
+                0.0 <= prediction["predictions"][0]["probability"] <= 1.0,
+            )
+            check(
+                "response carries the served model version",
+                prediction["model_version"] == info_body["model_version"],
+            )
             check("response carries a request id", bool(prediction["request_id"]))
 
             batch = client.post("/predict", json={"records": [EXAMPLE_RECORD] * 16})
-            check("batch prediction returns one result per record",
-                  batch.status_code == 200 and len(batch.json()["predictions"]) == 16)
+            check(
+                "batch prediction returns one result per record",
+                batch.status_code == 200 and len(batch.json()["predictions"]) == 16,
+            )
 
             bad = client.post("/predict", json={"records": [{**EXAMPLE_RECORD, "age": 900}]})
             check("invalid payload is rejected with 422", bad.status_code == 422, bad.text)
-            check("error response has the documented shape",
-                  set(bad.json()) == {"request_id", "error"}
-                  and bad.json()["error"]["type"] == "validation_error")
+            check(
+                "error response has the documented shape",
+                set(bad.json()) == {"request_id", "error"}
+                and bad.json()["error"]["type"] == "validation_error",
+            )
 
             missing = client.post("/predict", json={"records": [{}]})
             check("empty record is rejected with 422", missing.status_code == 422)
 
             metrics = client.get("/metrics")
             check("GET /metrics is 200", metrics.status_code == 200)
-            for series in ("mlserve_requests_total", "mlserve_predictions_total",
-                           "mlserve_request_latency_seconds_bucket", "mlserve_model_info",
-                           "mlserve_errors_total"):
+            for series in (
+                "mlserve_requests_total",
+                "mlserve_predictions_total",
+                "mlserve_request_latency_seconds_bucket",
+                "mlserve_model_info",
+                "mlserve_errors_total",
+            ):
                 check(f"/metrics exposes {series}", series in metrics.text)
 
             summary = client.get("/monitoring/summary")
             check("GET /monitoring/summary is 200", summary.status_code == 200)
-            check("monitoring counted the predictions",
-                  summary.json()["n_predictions"] >= 17, summary.text)
+            check(
+                "monitoring counted the predictions",
+                summary.json()["n_predictions"] >= 17,
+                summary.text,
+            )
             findings["monitoring_summary"] = summary.json()
 
             reload_result = client.post("/admin/reload")
-            check("POST /admin/reload is 200", reload_result.status_code == 200,
-                  reload_result.text)
+            check("POST /admin/reload is 200", reload_result.status_code == 200, reload_result.text)
             findings["reload"] = reload_result.json()
 
             check("unknown route is 404", client.get("/nope").status_code == 404)

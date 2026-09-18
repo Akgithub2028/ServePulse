@@ -91,12 +91,20 @@ def git_commit() -> str:
     try:
         out = subprocess.run(
             ["git", "rev-parse", "--short", "HEAD"],
-            cwd=project_root(), capture_output=True, text=True, timeout=5, check=False,
+            cwd=project_root(),
+            capture_output=True,
+            text=True,
+            timeout=5,
+            check=False,
         )
         if out.returncode == 0 and out.stdout.strip():
             dirty = subprocess.run(
                 ["git", "status", "--porcelain"],
-                cwd=project_root(), capture_output=True, text=True, timeout=5, check=False,
+                cwd=project_root(),
+                capture_output=True,
+                text=True,
+                timeout=5,
+                check=False,
             )
             suffix = "-dirty" if dirty.stdout.strip() else ""
             return out.stdout.strip() + suffix

@@ -114,16 +114,19 @@ def test_boolean_masquerading_as_numeric_is_rejected(clean_frame):
 # -------------------------------------------------------------------------- ranges
 
 
-@pytest.mark.parametrize("column,bad_value,check", [
-    ("age", 5, "range.below_minimum"),
-    ("age", 200, "range.above_maximum"),
-    ("education_num", 0, "range.below_minimum"),
-    ("education_num", 99, "range.above_maximum"),
-    ("hours_per_week", 0, "range.below_minimum"),
-    ("hours_per_week", 500, "range.above_maximum"),
-    ("capital_gain", -1, "range.below_minimum"),
-    ("capital_loss", -50, "range.below_minimum"),
-])
+@pytest.mark.parametrize(
+    "column,bad_value,check",
+    [
+        ("age", 5, "range.below_minimum"),
+        ("age", 200, "range.above_maximum"),
+        ("education_num", 0, "range.below_minimum"),
+        ("education_num", 99, "range.above_maximum"),
+        ("hours_per_week", 0, "range.below_minimum"),
+        ("hours_per_week", 500, "range.above_maximum"),
+        ("capital_gain", -1, "range.below_minimum"),
+        ("capital_loss", -50, "range.below_minimum"),
+    ],
+)
 def test_out_of_range_values_are_rejected(clean_frame, column, bad_value, check):
     frame = clean_frame.copy()
     frame.loc[frame.index[0], column] = bad_value

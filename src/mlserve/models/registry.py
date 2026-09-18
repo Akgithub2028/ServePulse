@@ -163,7 +163,9 @@ class ModelRegistry:
         self.client.set_registered_model_alias(self.model_name, alias, str(version))
         return self.get_version(version)
 
-    def promote(self, version: str | int, *, alias: str = PRODUCTION, keep_previous: bool = True) -> dict:
+    def promote(
+        self, version: str | int, *, alias: str = PRODUCTION, keep_previous: bool = True
+    ) -> dict:
         """Point ``alias`` at ``version``, remembering what it pointed at before.
 
         Returns the before/after pointers and the wall-clock cost of the repoint, so
@@ -172,8 +174,13 @@ class ModelRegistry:
         version = str(version)
         current = self.resolve_alias(alias)
         if current is not None and current.version == version:
-            return {"changed": False, "alias": alias, "from": current.version,
-                    "to": version, "seconds": 0.0}
+            return {
+                "changed": False,
+                "alias": alias,
+                "from": current.version,
+                "to": version,
+                "seconds": 0.0,
+            }
 
         start = time.perf_counter()
         if keep_previous and current is not None:
@@ -203,9 +210,7 @@ class ModelRegistry:
         if to_version is None:
             target = self.resolve_alias(PREVIOUS)
             if target is None:
-                raise RegistryError(
-                    f"no {PREVIOUS!r} alias recorded; supply to_version explicitly"
-                )
+                raise RegistryError(f"no {PREVIOUS!r} alias recorded; supply to_version explicitly")
             target_version = target.version
         else:
             target_version = str(to_version)

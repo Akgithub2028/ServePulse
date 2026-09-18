@@ -24,17 +24,28 @@ from mlserve.models.train import load_and_split, save_bundle, train_model
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
-    p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    p = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
     p.add_argument("--config", default=None, help="path to config.yaml")
     p.add_argument("--seed", type=int, default=None, help="override the configured seed")
-    p.add_argument("--no-baseline", action="store_true", help="skip the logistic-regression baseline")
-    p.add_argument("--no-register", action="store_true", help="track runs but do not touch the registry")
-    p.add_argument("--no-mlflow", action="store_true", help="train and save locally without tracking")
+    p.add_argument(
+        "--no-baseline", action="store_true", help="skip the logistic-regression baseline"
+    )
+    p.add_argument(
+        "--no-register", action="store_true", help="track runs but do not touch the registry"
+    )
+    p.add_argument(
+        "--no-mlflow", action="store_true", help="train and save locally without tracking"
+    )
     p.add_argument("--out", default=None, help="bundle output directory")
-    p.add_argument("--results-dir", default=None,
-                   help="where to write the run summary. Defaults to the configured "
-                        "results directory; pass an explicit path when training into a "
-                        "scratch location so the shared baseline is not overwritten.")
+    p.add_argument(
+        "--results-dir",
+        default=None,
+        help="where to write the run summary. Defaults to the configured "
+        "results directory; pass an explicit path when training into a "
+        "scratch location so the shared baseline is not overwritten.",
+    )
     p.add_argument("--run-suffix", default="", help="suffix appended to run names")
     return p.parse_args(argv)
 
@@ -53,13 +64,20 @@ def main(argv: list[str] | None = None) -> int:
     ]
     if not args.no_baseline:
         candidates.append(
-            (str(config.require("model.baseline.estimator")), dict(config.require("model.baseline.params")))
+            (
+                str(config.require("model.baseline.estimator")),
+                dict(config.require("model.baseline.params")),
+            )
         )
 
     results = []
     for estimator, params in candidates:
         pipeline, run = train_model(
-            config, split=split, estimator=estimator, params=params, seed=seed,
+            config,
+            split=split,
+            estimator=estimator,
+            params=params,
+            seed=seed,
             run_name=f"{estimator}-seed{seed}{args.run_suffix}",
         )
         logged = None
@@ -71,8 +89,7 @@ def main(argv: list[str] | None = None) -> int:
             f"trained  : {run.run_name:38s} "
             f"val_roc_auc={run.metrics['validation_roc_auc']:.5f} "
             f"test_roc_auc={run.metrics['test_roc_auc']:.5f} "
-            f"fit={run.training_seconds:.2f}s"
-            + (f" run_id={logged.run_id[:8]}" if logged else "")
+            f"fit={run.training_seconds:.2f}s" + (f" run_id={logged.run_id[:8]}" if logged else "")
         )
 
     best_pipeline, best_training_run, best_logged = max(
@@ -114,16 +131,21 @@ def main(argv: list[str] | None = None) -> int:
         "selected_run": best_training_run.run_name,
         "registered": registered,
     }
-    results_dir = (Path(args.results_dir) if args.results_dir
-                   else config.path("paths.results_dir")) / "training"
+    results_dir = (
+        Path(args.results_dir) if args.results_dir else config.path("paths.results_dir")
+    ) / "training"
     results_dir.mkdir(parents=True, exist_ok=True)
-    (results_dir / "last_training_summary.json").write_text(json.dumps(summary, indent=2, sort_keys=True))
+    (results_dir / "last_training_summary.json").write_text(
+        json.dumps(summary, indent=2, sort_keys=True)
+    )
 
     if not args.no_mlflow:
         top = best_run(config)
         if top is not None:
-            print(f"best run : {top['tags.mlflow.runName']} "
-                  f"val_roc_auc={top['metrics.validation_roc_auc']:.5f}")
+            print(
+                f"best run : {top['tags.mlflow.runName']} "
+                f"val_roc_auc={top['metrics.validation_roc_auc']:.5f}"
+            )
     print("TRAIN_PIPELINE_OK")
     return 0
 

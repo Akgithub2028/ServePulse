@@ -38,8 +38,9 @@ def download(url: str, destination: Path) -> None:
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description=__doc__,
-                                     formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
     parser.add_argument("--force", action="store_true", help="re-download files that already exist")
     parser.add_argument("--verify", action="store_true", help="verify only, no network access")
     parser.add_argument("--raw-dir", default=None, help="override the configured raw directory")

@@ -50,8 +50,10 @@ def test_psi_is_near_zero_for_two_draws_from_one_distribution(rng):
 
 def test_psi_grows_with_the_size_of_the_shift(rng):
     reference = rng.normal(size=20000)
-    scores = [population_stability_index(reference, rng.normal(loc=shift, size=20000))
-              for shift in (0.1, 0.5, 1.0, 2.0)]
+    scores = [
+        population_stability_index(reference, rng.normal(loc=shift, size=20000))
+        for shift in (0.1, 0.5, 1.0, 2.0)
+    ]
     assert scores == sorted(scores)
     assert scores[0] < 0.1 < scores[-1]
 
@@ -151,7 +153,9 @@ def test_psi_of_an_empty_sample_is_infinite():
 def test_numeric_no_drift_is_not_flagged(rng):
     a = pd.Series(rng.normal(50, 10, 10000))
     b = pd.Series(rng.normal(50, 10, 10000))
-    result = numeric_feature_drift("age", a, b, psi_warn=0.1, psi_alert=0.25, ks_alpha=0.01, n_bins=10)
+    result = numeric_feature_drift(
+        "age", a, b, psi_warn=0.1, psi_alert=0.25, ks_alpha=0.01, n_bins=10
+    )
     assert result.drifted is False
     assert result.severity == "none"
 
@@ -159,7 +163,9 @@ def test_numeric_no_drift_is_not_flagged(rng):
 def test_numeric_large_shift_is_flagged(rng):
     a = pd.Series(rng.normal(50, 10, 10000))
     b = pd.Series(rng.normal(70, 10, 10000))
-    result = numeric_feature_drift("age", a, b, psi_warn=0.1, psi_alert=0.25, ks_alpha=0.01, n_bins=10)
+    result = numeric_feature_drift(
+        "age", a, b, psi_warn=0.1, psi_alert=0.25, ks_alpha=0.01, n_bins=10
+    )
     assert result.drifted is True
     assert result.severity == "alert"
     assert result.psi > 0.25
@@ -170,7 +176,9 @@ def test_numeric_variance_only_change_is_detected(rng):
     """A change in spread with the same mean must still be visible."""
     a = pd.Series(rng.normal(50, 5, 20000))
     b = pd.Series(rng.normal(50, 20, 20000))
-    result = numeric_feature_drift("age", a, b, psi_warn=0.1, psi_alert=0.25, ks_alpha=0.01, n_bins=10)
+    result = numeric_feature_drift(
+        "age", a, b, psi_warn=0.1, psi_alert=0.25, ks_alpha=0.01, n_bins=10
+    )
     assert result.drifted is True
     assert abs(result.reference_mean - result.current_mean) < 1.0
 
@@ -178,13 +186,22 @@ def test_numeric_variance_only_change_is_detected(rng):
 def test_wasserstein_is_reported_in_feature_units(rng):
     a = pd.Series(rng.normal(50, 5, 20000))
     b = pd.Series(rng.normal(62, 5, 20000))
-    result = numeric_feature_drift("age", a, b, psi_warn=0.1, psi_alert=0.25, ks_alpha=0.01, n_bins=10)
+    result = numeric_feature_drift(
+        "age", a, b, psi_warn=0.1, psi_alert=0.25, ks_alpha=0.01, n_bins=10
+    )
     assert result.wasserstein == pytest.approx(12.0, abs=0.5)
 
 
 def test_numeric_drift_on_an_empty_current_window_is_flagged():
-    result = numeric_feature_drift("age", pd.Series([30, 40, 50]), pd.Series([], dtype=float),
-                                   psi_warn=0.1, psi_alert=0.25, ks_alpha=0.01, n_bins=10)
+    result = numeric_feature_drift(
+        "age",
+        pd.Series([30, 40, 50]),
+        pd.Series([], dtype=float),
+        psi_warn=0.1,
+        psi_alert=0.25,
+        ks_alpha=0.01,
+        n_bins=10,
+    )
     assert result.drifted is True
     assert "no usable" in result.note
 
@@ -197,7 +214,9 @@ def test_categorical_no_drift_is_not_flagged(rng):
     probabilities = [0.7, 0.1, 0.1, 0.1]
     a = pd.Series(rng.choice(levels, 10000, p=probabilities))
     b = pd.Series(rng.choice(levels, 10000, p=probabilities))
-    result = categorical_feature_drift("workclass", a, b, psi_warn=0.1, psi_alert=0.25, chi2_alpha=0.01)
+    result = categorical_feature_drift(
+        "workclass", a, b, psi_warn=0.1, psi_alert=0.25, chi2_alpha=0.01
+    )
     assert result.drifted is False
 
 
@@ -205,7 +224,9 @@ def test_categorical_mix_change_is_flagged(rng):
     levels = ["Private", "Local-gov", "State-gov", "Self-emp-not-inc"]
     a = pd.Series(rng.choice(levels, 10000, p=[0.7, 0.1, 0.1, 0.1]))
     b = pd.Series(rng.choice(levels, 10000, p=[0.25, 0.25, 0.25, 0.25]))
-    result = categorical_feature_drift("workclass", a, b, psi_warn=0.1, psi_alert=0.25, chi2_alpha=0.01)
+    result = categorical_feature_drift(
+        "workclass", a, b, psi_warn=0.1, psi_alert=0.25, chi2_alpha=0.01
+    )
     assert result.drifted is True
     assert result.psi > 0.25
 
@@ -215,7 +236,9 @@ def test_rare_levels_are_pooled_for_chi_square(rng):
     rare = [f"Country-{i}" for i in range(30)]
     a = pd.Series(common + rare)
     b = pd.Series(common + rare)
-    result = categorical_feature_drift("native_country", a, b, psi_warn=0.1, psi_alert=0.25, chi2_alpha=0.01)
+    result = categorical_feature_drift(
+        "native_country", a, b, psi_warn=0.1, psi_alert=0.25, chi2_alpha=0.01
+    )
     assert "pooled" in result.note
     assert result.drifted is False
 
@@ -401,13 +424,16 @@ def test_scenario_table_documents_every_scenario():
 # ------------------------------------------------- end-to-end scenario behaviour
 
 
-@pytest.mark.parametrize("scenario,should_alert", [
-    ("no_drift", False),
-    ("small_drift", False),
-    ("large_drift", True),
-    ("missing_feature", True),
-    ("covariate_shift", True),
-])
+@pytest.mark.parametrize(
+    "scenario,should_alert",
+    [
+        ("no_drift", False),
+        ("small_drift", False),
+        ("large_drift", True),
+        ("missing_feature", True),
+        ("covariate_shift", True),
+    ],
+)
 def test_scenario_detection_matches_expectation(small_split, config, scenario, should_alert):
     reference = small_split.train[FEATURE_NAMES]
     detector = DriftDetector.from_config(reference, config)
@@ -440,8 +466,8 @@ def test_prediction_level_drift_catches_a_mean_shift_that_psi_misses():
     detectable.
     """
     rng = np.random.default_rng(7)
-    reference = rng.beta(2, 6, 20000)          # mean ~0.25
-    current = np.clip(reference * 1.6, 0, 1)   # same shape, higher level
+    reference = rng.beta(2, 6, 20000)  # mean ~0.25
+    current = np.clip(reference * 1.6, 0, 1)  # same shape, higher level
     result = prediction_drift(reference, current, psi_alert=0.25, ks_alpha=0.01)
     assert result["level_drift"] is True
     assert result["drifted"] is True

@@ -31,14 +31,29 @@ CV_FILE = ROOT / "CV_POINTERS_ML_SERVING_MONITORING.md"
 #: that must appear within the same line for the use to be legitimate -- that is, the
 #: claim is only allowed when it is being explicitly qualified or denied.
 FORBIDDEN_UNLESS_QUALIFIED: dict[str, tuple[str, ...]] = {
-    "production-ready": ("not production-ready", "NOT production-ready", "is not a production",
-                         "would need", "stops short of"),
+    "production-ready": (
+        "not production-ready",
+        "NOT production-ready",
+        "is not a production",
+        "would need",
+        "stops short of",
+    ),
     "production ready": ("not production ready", "NOT production ready"),
     "100% reproducible": ("not 100% reproducible", "no claim of 100%"),
-    "fully reproducible": ("not fully reproducible", "within one machine",
-                           "on one machine", "same machine"),
-    "zero-downtime": ("not verified", "no zero-downtime", "cannot claim", "not claimed",
-                      "would require", "no failed requests"),
+    "fully reproducible": (
+        "not fully reproducible",
+        "within one machine",
+        "on one machine",
+        "same machine",
+    ),
+    "zero-downtime": (
+        "not verified",
+        "no zero-downtime",
+        "cannot claim",
+        "not claimed",
+        "would require",
+        "no failed requests",
+    ),
     "zero downtime": ("not verified", "no zero downtime", "cannot claim", "not claimed"),
     "battle-tested": (),
     "enterprise-grade": (),
@@ -98,7 +113,11 @@ def parse_evidence_rows(text: str) -> list[dict]:
     in_table = False
     for line in text.splitlines():
         stripped = line.strip()
-        if stripped.startswith("|") and "Evidence File" in stripped and "Safe to Mention" in stripped:
+        if (
+            stripped.startswith("|")
+            and "Evidence File" in stripped
+            and "Safe to Mention" in stripped
+        ):
             in_table = True
             continue
         if in_table:
@@ -109,14 +128,16 @@ def parse_evidence_rows(text: str) -> list[dict]:
             cells = [c.strip() for c in stripped.strip("|").split("|")]
             if len(cells) < 6 or set(cells[0]) <= {"-", ":", " "}:
                 continue
-            rows.append({
-                "claim": cells[0],
-                "evidence_file": cells[1],
-                "test": cells[2],
-                "result": cells[3],
-                "command": cells[4],
-                "safe": cells[5],
-            })
+            rows.append(
+                {
+                    "claim": cells[0],
+                    "evidence_file": cells[1],
+                    "test": cells[2],
+                    "result": cells[3],
+                    "command": cells[4],
+                    "safe": cells[5],
+                }
+            )
     return rows
 
 
@@ -142,16 +163,28 @@ def check_evidence_table(problems: list[str]) -> int:
             # claim. Requiring it to cite an evidence file would be backwards: the whole
             # point is that no evidence exists. What it must do is say so explicitly.
             disclaimer = row["result"].lower()
-            if not any(word in disclaimer for word in
-                       ("not measured", "not tested", "not claimed", "never executed",
-                        "one machine only", "not verified", "not run")):
-                fail(problems,
-                     f"{label}: marked unsafe but does not state why "
-                     f"(got {row['result']!r})")
+            if not any(
+                word in disclaimer
+                for word in (
+                    "not measured",
+                    "not tested",
+                    "not claimed",
+                    "never executed",
+                    "one machine only",
+                    "not verified",
+                    "not run",
+                )
+            ):
+                fail(
+                    problems,
+                    f"{label}: marked unsafe but does not state why " f"(got {row['result']!r})",
+                )
             continue
 
         # Every listed evidence file must exist.
-        files = [strip_markup(f) for f in re.split(r"[,;]| and ", row["evidence_file"]) if f.strip()]
+        files = [
+            strip_markup(f) for f in re.split(r"[,;]| and ", row["evidence_file"]) if f.strip()
+        ]
         contents = ""
         for name in files:
             path = ROOT / name
@@ -172,8 +205,7 @@ def check_evidence_table(problems: list[str]) -> int:
             if number in ("0", "1", "2") and len(quoted) > 1:
                 continue  # trivially common tokens; the distinctive figures carry the check
             if number not in contents:
-                fail(problems,
-                     f"{label}: result {number!r} does not appear in {files!r}")
+                fail(problems, f"{label}: result {number!r} does not appear in {files!r}")
 
         # The reproduction command must name a script that exists.
         command = strip_markup(row["command"])
@@ -189,9 +221,22 @@ def check_evidence_table(problems: list[str]) -> int:
 #: Words that, in the same line or the two lines after it, show the phrase is being
 #: denied, questioned or discussed rather than asserted.
 DENIAL_MARKERS = (
-    "not ", "no ", "never", "cannot", "can't", "would need", "would require",
-    "unqualified", "do not", "don't", "is a claim about", "avoid", "refus",
-    "stops short", "0 failed", "no failed",
+    "not ",
+    "no ",
+    "never",
+    "cannot",
+    "can't",
+    "would need",
+    "would require",
+    "unqualified",
+    "do not",
+    "don't",
+    "is a claim about",
+    "avoid",
+    "refus",
+    "stops short",
+    "0 failed",
+    "no failed",
 )
 
 #: Context window searched for a denial: one line back and two forward. A question
@@ -223,11 +268,13 @@ def check_no_overclaim(problems: list[str]) -> int:
                 if line.lstrip().startswith("|") and "**no**" in lowered:
                     continue
                 start = max(0, number - 1 - DENIAL_LOOKBACK)
-                context = " ".join(lines[start:number + DENIAL_LOOKAHEAD]).lower()
+                context = " ".join(lines[start : number + DENIAL_LOOKAHEAD]).lower()
                 if any(marker in context for marker in DENIAL_MARKERS):
                     continue
-                fail(problems,
-                     f"{path.name}:{number}: unqualified claim {phrase!r} -> {line.strip()[:110]}")
+                fail(
+                    problems,
+                    f"{path.name}:{number}: unqualified claim {phrase!r} -> {line.strip()[:110]}",
+                )
     return checked
 
 

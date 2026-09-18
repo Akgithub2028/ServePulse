@@ -75,8 +75,18 @@ def score_window(model, window: pd.DataFrame, threshold: float) -> tuple[np.ndar
     return proba, metrics
 
 
-def run_detection_trials(detector, base, model, *, scenario, trials, window, threshold,
-                         reference_scores, mean_shift_alert) -> list[dict]:
+def run_detection_trials(
+    detector,
+    base,
+    model,
+    *,
+    scenario,
+    trials,
+    window,
+    threshold,
+    reference_scores,
+    mean_shift_alert,
+) -> list[dict]:
     rows = []
     for trial in range(trials):
         seed = 10_000 + trial
@@ -87,35 +97,42 @@ def run_detection_trials(detector, base, model, *, scenario, trials, window, thr
 
         proba, metrics = score_window(model, current, threshold)
         pred_drift = (
-            prediction_drift(reference_scores, proba,
-                             psi_alert=detector.psi_alert, ks_alpha=detector.ks_alpha,
-                             mean_shift_alert=mean_shift_alert)
-            if len(proba) else None
+            prediction_drift(
+                reference_scores,
+                proba,
+                psi_alert=detector.psi_alert,
+                ks_alpha=detector.ks_alpha,
+                mean_shift_alert=mean_shift_alert,
+            )
+            if len(proba)
+            else None
         )
 
-        rows.append({
-            "scenario": scenario,
-            "trial": trial,
-            "seed": seed,
-            "expect_drift": SCENARIOS[scenario].expect_drift,
-            "kind": SCENARIOS[scenario].kind,
-            "input_drift_detected": report.drift_detected,
-            "n_drifted_features": report.n_drifted,
-            "n_schema_failures": len(report.schema_failures),
-            "max_psi": round(report.max_psi, 6),
-            "mean_psi": round(report.mean_psi, 6),
-            "detection_seconds": round(elapsed, 6),
-            "prediction_drift_detected": (pred_drift or {}).get("drifted"),
-            "prediction_shape_drift": (pred_drift or {}).get("shape_drift"),
-            "prediction_level_drift": (pred_drift or {}).get("level_drift"),
-            "prediction_psi": (pred_drift or {}).get("psi"),
-            "prediction_mean": (pred_drift or {}).get("current_mean"),
-            "prediction_mean_shift": (pred_drift or {}).get("mean_shift"),
-            "roc_auc": (metrics or {}).get("roc_auc"),
-            "pr_auc": (metrics or {}).get("pr_auc"),
-            "accuracy": (metrics or {}).get("accuracy"),
-            "scorable": bool(len(proba)),
-        })
+        rows.append(
+            {
+                "scenario": scenario,
+                "trial": trial,
+                "seed": seed,
+                "expect_drift": SCENARIOS[scenario].expect_drift,
+                "kind": SCENARIOS[scenario].kind,
+                "input_drift_detected": report.drift_detected,
+                "n_drifted_features": report.n_drifted,
+                "n_schema_failures": len(report.schema_failures),
+                "max_psi": round(report.max_psi, 6),
+                "mean_psi": round(report.mean_psi, 6),
+                "detection_seconds": round(elapsed, 6),
+                "prediction_drift_detected": (pred_drift or {}).get("drifted"),
+                "prediction_shape_drift": (pred_drift or {}).get("shape_drift"),
+                "prediction_level_drift": (pred_drift or {}).get("level_drift"),
+                "prediction_psi": (pred_drift or {}).get("psi"),
+                "prediction_mean": (pred_drift or {}).get("current_mean"),
+                "prediction_mean_shift": (pred_drift or {}).get("mean_shift"),
+                "roc_auc": (metrics or {}).get("roc_auc"),
+                "pr_auc": (metrics or {}).get("pr_auc"),
+                "accuracy": (metrics or {}).get("accuracy"),
+                "scorable": bool(len(proba)),
+            }
+        )
     return rows
 
 
@@ -129,14 +146,20 @@ def run_latency_trials(detector, base, *, scenario, trials, window) -> list[dict
     for trial in range(trials):
         detected_at = None
         for index in range(LATENCY_MAX_WINDOWS):
-            current = build_scenario(scenario, base, seed=50_000 + trial * 100 + index,
-                                     n_rows=window)
+            current = build_scenario(
+                scenario, base, seed=50_000 + trial * 100 + index, n_rows=window
+            )
             if detector.detect(current, scenario=scenario).drift_detected:
                 detected_at = index + 1
                 break
-        rows.append({"scenario": scenario, "trial": trial,
-                     "windows_to_detection": detected_at,
-                     "max_windows": LATENCY_MAX_WINDOWS})
+        rows.append(
+            {
+                "scenario": scenario,
+                "trial": trial,
+                "windows_to_detection": detected_at,
+                "max_windows": LATENCY_MAX_WINDOWS,
+            }
+        )
     return rows
 
 
@@ -155,33 +178,40 @@ def summarise(trials: pd.DataFrame, baseline_auc: float | None) -> pd.DataFrame:
         detected = group["input_drift_detected"].mean()
         scorable = group[group["scorable"]]
         mean_auc = float(scorable["roc_auc"].mean()) if len(scorable) else float("nan")
-        rows.append({
-            "scenario": scenario,
-            "kind": group["kind"].iloc[0],
-            "expect_drift": expect,
-            "trials": len(group),
-            "input_drift_detection_rate": round(float(detected), 4),
-            "input_drift_false_positive_rate": round(float(detected), 4) if not expect else None,
-            "prediction_drift_detection_rate": (
-                round(float(group["prediction_drift_detected"].dropna().mean()), 4)
-                if group["prediction_drift_detected"].notna().any() else None
-            ),
-            "mean_drifted_features": round(float(group["n_drifted_features"].mean()), 3),
-            "mean_schema_failures": round(float(group["n_schema_failures"].mean()), 3),
-            "mean_max_psi": round(float(group["max_psi"].mean()), 4),
-            "mean_detection_seconds": round(float(group["detection_seconds"].mean()), 5),
-            "mean_roc_auc": round(mean_auc, 6) if mean_auc == mean_auc else None,
-            "roc_auc_delta_vs_no_drift": (
-                round(mean_auc - baseline_auc, 6)
-                if baseline_auc is not None and mean_auc == mean_auc else None
-            ),
-            "scorable": bool(group["scorable"].all()),
-        })
+        rows.append(
+            {
+                "scenario": scenario,
+                "kind": group["kind"].iloc[0],
+                "expect_drift": expect,
+                "trials": len(group),
+                "input_drift_detection_rate": round(float(detected), 4),
+                "input_drift_false_positive_rate": (
+                    round(float(detected), 4) if not expect else None
+                ),
+                "prediction_drift_detection_rate": (
+                    round(float(group["prediction_drift_detected"].dropna().mean()), 4)
+                    if group["prediction_drift_detected"].notna().any()
+                    else None
+                ),
+                "mean_drifted_features": round(float(group["n_drifted_features"].mean()), 3),
+                "mean_schema_failures": round(float(group["n_schema_failures"].mean()), 3),
+                "mean_max_psi": round(float(group["max_psi"].mean()), 4),
+                "mean_detection_seconds": round(float(group["detection_seconds"].mean()), 5),
+                "mean_roc_auc": round(mean_auc, 6) if mean_auc == mean_auc else None,
+                "roc_auc_delta_vs_no_drift": (
+                    round(mean_auc - baseline_auc, 6)
+                    if baseline_auc is not None and mean_auc == mean_auc
+                    else None
+                ),
+                "scorable": bool(group["scorable"].all()),
+            }
+        )
     return pd.DataFrame(rows)
 
 
-def make_plots(trials: pd.DataFrame, per_feature: pd.DataFrame, summary: pd.DataFrame,
-               out_dir: Path) -> list[Path]:
+def make_plots(
+    trials: pd.DataFrame, per_feature: pd.DataFrame, summary: pd.DataFrame, out_dir: Path
+) -> list[Path]:
     import matplotlib
 
     matplotlib.use("Agg")
@@ -193,9 +223,18 @@ def make_plots(trials: pd.DataFrame, per_feature: pd.DataFrame, summary: pd.Data
     # 1. Detection rate per scenario.
     fig, ax = plt.subplots(figsize=(9, 4.5))
     order = summary.sort_values("input_drift_detection_rate")
-    colours = ["#c0392b" if (r.expect_drift and r.input_drift_detection_rate < 0.5)
-               else "#e67e22" if (not r.expect_drift and r.input_drift_detection_rate > 0.1)
-               else "#2980b9" for r in order.itertuples()]
+    colours = [
+        (
+            "#c0392b"
+            if (r.expect_drift and r.input_drift_detection_rate < 0.5)
+            else (
+                "#e67e22"
+                if (not r.expect_drift and r.input_drift_detection_rate > 0.1)
+                else "#2980b9"
+            )
+        )
+        for r in order.itertuples()
+    ]
     ax.barh(order["scenario"], order["input_drift_detection_rate"], color=colours)
     ax.set_xlabel("input-drift detection rate")
     ax.set_xlim(0, 1.05)
@@ -211,8 +250,11 @@ def make_plots(trials: pd.DataFrame, per_feature: pd.DataFrame, summary: pd.Data
     # 2. PSI distribution per scenario.
     fig, ax = plt.subplots(figsize=(9, 4.5))
     scenarios = list(trials["scenario"].unique())
-    ax.boxplot([trials.loc[trials["scenario"] == s, "max_psi"] for s in scenarios],
-               tick_labels=scenarios, vert=True)
+    ax.boxplot(
+        [trials.loc[trials["scenario"] == s, "max_psi"] for s in scenarios],
+        tick_labels=scenarios,
+        vert=True,
+    )
     ax.axhline(0.25, color="#c0392b", linestyle="--", label="alert threshold (PSI 0.25)")
     ax.axhline(0.10, color="#e67e22", linestyle=":", label="warn threshold (PSI 0.10)")
     ax.set_yscale("symlog", linthresh=0.01)
@@ -262,8 +304,9 @@ def make_plots(trials: pd.DataFrame, per_feature: pd.DataFrame, summary: pd.Data
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description=__doc__,
-                                     formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
     parser.add_argument("--trials", type=int, default=DEFAULT_TRIALS)
     parser.add_argument("--latency-trials", type=int, default=10)
     parser.add_argument("--window", type=int, default=DEFAULT_WINDOW)
@@ -277,9 +320,11 @@ def main(argv: list[str] | None = None) -> int:
     threshold = float(config.require("evaluation.decision_threshold"))
 
     reference_rows = int(config.require("drift.reference_sample"))
-    reference = split.train[FEATURE_NAMES].sample(
-        n=min(reference_rows, len(split.train)), random_state=config.seed
-    ).reset_index(drop=True)
+    reference = (
+        split.train[FEATURE_NAMES]
+        .sample(n=min(reference_rows, len(split.train)), random_state=config.seed)
+        .reset_index(drop=True)
+    )
     detector = DriftDetector.from_config(reference, config)
     mean_shift_alert = float(config.get("drift.prediction_mean_shift_alert", 0.25))
 
@@ -299,17 +344,31 @@ def main(argv: list[str] | None = None) -> int:
 
     for scenario in scenarios:
         start = time.perf_counter()
-        trial_rows.extend(run_detection_trials(
-            detector, split.test, model, scenario=scenario, trials=args.trials,
-            window=args.window, threshold=threshold, reference_scores=reference_scores,
-            mean_shift_alert=mean_shift_alert,
-        ))
-        latency_rows.extend(run_latency_trials(
-            detector, split.test, scenario=scenario, trials=args.latency_trials,
-            window=args.window,
-        ))
-        feature_frames.append(per_feature_report(detector, split.test,
-                                                 scenario=scenario, window=args.window))
+        trial_rows.extend(
+            run_detection_trials(
+                detector,
+                split.test,
+                model,
+                scenario=scenario,
+                trials=args.trials,
+                window=args.window,
+                threshold=threshold,
+                reference_scores=reference_scores,
+                mean_shift_alert=mean_shift_alert,
+            )
+        )
+        latency_rows.extend(
+            run_latency_trials(
+                detector,
+                split.test,
+                scenario=scenario,
+                trials=args.latency_trials,
+                window=args.window,
+            )
+        )
+        feature_frames.append(
+            per_feature_report(detector, split.test, scenario=scenario, window=args.window)
+        )
         print(f"  {scenario:18s} done in {time.perf_counter() - start:6.1f}s")
 
     trials = pd.DataFrame(trial_rows)
@@ -322,10 +381,12 @@ def main(argv: list[str] | None = None) -> int:
     summary = summarise(trials, baseline_auc)
     latency_summary = (
         latency.groupby("scenario", sort=False)
-        .agg(detection_latency_windows_mean=("windows_to_detection", "mean"),
-             detection_latency_windows_max=("windows_to_detection", "max"),
-             latency_trials=("trial", "count"),
-             never_detected=("windows_to_detection", lambda s: int(s.isna().sum())))
+        .agg(
+            detection_latency_windows_mean=("windows_to_detection", "mean"),
+            detection_latency_windows_max=("windows_to_detection", "max"),
+            latency_trials=("trial", "count"),
+            never_detected=("windows_to_detection", lambda s: int(s.isna().sum())),
+        )
         .reset_index()
     )
     summary = summary.merge(latency_summary, on="scenario", how="left")
@@ -339,32 +400,49 @@ def main(argv: list[str] | None = None) -> int:
     per_feature.to_csv(results_dir / "drift_per_feature.csv", index=False)
     latency.to_csv(results_dir / "drift_detection_latency.csv", index=False)
     summary.to_csv(root / "DRIFT_RESULTS.csv", index=False)
-    (results_dir / "drift_experiment.json").write_text(json.dumps({
-        "model_version": model.model_version,
-        "model_source": model.source,
-        "dataset_version": split.dataset_version.dataset_id,
-        "split_id": split.split_id,
-        "reference_rows": len(reference),
-        "window_rows": args.window,
-        "trials": args.trials,
-        "latency_trials": args.latency_trials,
-        "max_windows_for_latency": LATENCY_MAX_WINDOWS,
-        "thresholds": detector.thresholds,
-        "baseline_roc_auc": baseline_auc,
-        "host_load_average": os.getloadavg(),
-        "summary": summary.to_dict(orient="records"),
-    }, indent=2, default=str))
+    (results_dir / "drift_experiment.json").write_text(
+        json.dumps(
+            {
+                "model_version": model.model_version,
+                "model_source": model.source,
+                "dataset_version": split.dataset_version.dataset_id,
+                "split_id": split.split_id,
+                "reference_rows": len(reference),
+                "window_rows": args.window,
+                "trials": args.trials,
+                "latency_trials": args.latency_trials,
+                "max_windows_for_latency": LATENCY_MAX_WINDOWS,
+                "thresholds": detector.thresholds,
+                "baseline_roc_auc": baseline_auc,
+                "host_load_average": os.getloadavg(),
+                "summary": summary.to_dict(orient="records"),
+            },
+            indent=2,
+            default=str,
+        )
+    )
 
     if not args.no_plots:
-        for path in make_plots(trials, per_feature, summary,
-                               config.path("paths.results_dir") / "plots"):
+        for path in make_plots(
+            trials, per_feature, summary, config.path("paths.results_dir") / "plots"
+        ):
             print(f"  plot: {path.relative_to(root)}")
 
-    print("\n" + summary[[
-        "scenario", "expect_drift", "input_drift_detection_rate",
-        "prediction_drift_detection_rate", "mean_max_psi", "mean_roc_auc",
-        "roc_auc_delta_vs_no_drift", "detection_latency_windows_mean",
-    ]].to_string(index=False))
+    print(
+        "\n"
+        + summary[
+            [
+                "scenario",
+                "expect_drift",
+                "input_drift_detection_rate",
+                "prediction_drift_detection_rate",
+                "mean_max_psi",
+                "mean_roc_auc",
+                "roc_auc_delta_vs_no_drift",
+                "detection_latency_windows_mean",
+            ]
+        ].to_string(index=False)
+    )
     print("\nDRIFT_EXPERIMENT_OK")
     return 0
 

@@ -50,10 +50,12 @@ def test_estimator_seed_does_not_change_this_model_and_that_is_intended(config, 
 def test_a_different_hyperparameter_produces_a_different_model(config, small_split):
     """Negative control for the fingerprint: it must be able to tell models apart."""
     base = dict(config.require("model.params"))
-    _, a = train_model(config, split=small_split, params={**base, "max_iter": 20},
-                       evaluate_test=False)
-    _, b = train_model(config, split=small_split, params={**base, "max_iter": 60},
-                       evaluate_test=False)
+    _, a = train_model(
+        config, split=small_split, params={**base, "max_iter": 20}, evaluate_test=False
+    )
+    _, b = train_model(
+        config, split=small_split, params={**base, "max_iter": 60}, evaluate_test=False
+    )
     assert a.training_fingerprint != b.training_fingerprint
 
 
@@ -99,9 +101,20 @@ def test_run_records_every_required_provenance_field(trained):
     _, run = trained
     payload = run.to_dict()
     required = [
-        "dataset_version", "dataset_files", "split_id", "code_version", "git_commit",
-        "config_digest", "seed", "params", "feature_list", "input_columns", "metrics",
-        "training_seconds", "environment", "training_fingerprint",
+        "dataset_version",
+        "dataset_files",
+        "split_id",
+        "code_version",
+        "git_commit",
+        "config_digest",
+        "seed",
+        "params",
+        "feature_list",
+        "input_columns",
+        "metrics",
+        "training_seconds",
+        "environment",
+        "training_fingerprint",
     ]
     for key in required:
         assert key in payload, f"{key} is not recorded"
@@ -152,8 +165,11 @@ def test_boosted_model_beats_the_linear_baseline(config, small_split):
     """A sanity floor: if this fails, the pipeline is broken, not the data."""
     _, tree = train_model(config, split=small_split, evaluate_test=False)
     _, linear = train_model(
-        config, split=small_split, estimator="logistic_regression",
-        params={"C": 1.0, "max_iter": 1000}, evaluate_test=False,
+        config,
+        split=small_split,
+        estimator="logistic_regression",
+        params={"C": 1.0, "max_iter": 1000},
+        evaluate_test=False,
     )
     assert tree.metrics["validation_roc_auc"] > linear.metrics["validation_roc_auc"]
 
@@ -162,7 +178,9 @@ def test_evaluation_covers_every_configured_metric(config, trained, small_split)
     pipeline, _ = trained
     X, y = small_split.xy("validation")
     result = evaluate(pipeline, X, y, split="validation", threshold=0.5)
-    expected = {config.require("evaluation.primary_metric")} | set(config.require("evaluation.secondary_metrics"))
+    expected = {config.require("evaluation.primary_metric")} | set(
+        config.require("evaluation.secondary_metrics")
+    )
     assert expected.issubset(set(result.metrics))
     assert result.confusion["tp"] + result.confusion["fn"] == int(y.sum())
 

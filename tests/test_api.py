@@ -39,9 +39,18 @@ def test_ready_gates_on_the_model(client, unloaded_client):
 
 def test_model_info_exposes_full_provenance(client):
     body = client.get("/model-info").json()
-    for key in ("model_name", "model_version", "model_source", "dataset_version",
-                "code_version", "git_commit", "training_fingerprint", "loaded_at",
-                "input_columns", "model_features"):
+    for key in (
+        "model_name",
+        "model_version",
+        "model_source",
+        "dataset_version",
+        "code_version",
+        "git_commit",
+        "training_fingerprint",
+        "loaded_at",
+        "input_columns",
+        "model_features",
+    ):
         assert body[key], f"{key} missing from /model-info"
     assert body["input_columns"] == FEATURE_NAMES
 
@@ -102,12 +111,26 @@ def test_prediction_is_reported_with_latency(client):
 
 def test_high_earning_profile_scores_above_a_low_earning_one(client):
     """A basic sanity check that the wiring is not scrambling features."""
-    low = {**EXAMPLE_RECORD, "education_num": 1, "hours_per_week": 10,
-           "occupation": "Other-service", "capital_gain": 0,
-           "marital_status": "Never-married", "relationship": "Own-child", "age": 19}
-    high = {**EXAMPLE_RECORD, "education_num": 16, "hours_per_week": 60,
-            "occupation": "Exec-managerial", "capital_gain": 15000,
-            "marital_status": "Married-civ-spouse", "relationship": "Husband", "age": 45}
+    low = {
+        **EXAMPLE_RECORD,
+        "education_num": 1,
+        "hours_per_week": 10,
+        "occupation": "Other-service",
+        "capital_gain": 0,
+        "marital_status": "Never-married",
+        "relationship": "Own-child",
+        "age": 19,
+    }
+    high = {
+        **EXAMPLE_RECORD,
+        "education_num": 16,
+        "hours_per_week": 60,
+        "occupation": "Exec-managerial",
+        "capital_gain": 15000,
+        "marital_status": "Married-civ-spouse",
+        "relationship": "Husband",
+        "age": 45,
+    }
     body = client.post("/predict", json={"records": [low, high]}).json()
     assert body["predictions"][1]["probability"] > body["predictions"][0]["probability"]
 
@@ -121,15 +144,18 @@ def test_every_response_carries_a_request_id(client):
 
 
 def test_a_supplied_request_id_is_echoed(client):
-    response = client.post("/predict", json={"records": [EXAMPLE_RECORD]},
-                           headers={REQUEST_ID_HEADER: "trace-me-123"})
+    response = client.post(
+        "/predict", json={"records": [EXAMPLE_RECORD]}, headers={REQUEST_ID_HEADER: "trace-me-123"}
+    )
     assert response.headers[REQUEST_ID_HEADER] == "trace-me-123"
     assert response.json()["request_id"] == "trace-me-123"
 
 
 def test_request_ids_are_unique_per_request(client):
-    ids = {client.post("/predict", json={"records": [EXAMPLE_RECORD]}).json()["request_id"]
-           for _ in range(10)}
+    ids = {
+        client.post("/predict", json={"records": [EXAMPLE_RECORD]}).json()["request_id"]
+        for _ in range(10)
+    }
     assert len(ids) == 10
 
 
@@ -138,6 +164,7 @@ def test_request_ids_are_unique_per_request(client):
 
 def test_concurrent_requests_are_all_served_correctly(client):
     """Concurrency must not corrupt the store, the metrics or the responses."""
+
     def call(i):
         record = {**EXAMPLE_RECORD, "age": 30 + (i % 40)}
         response = client.post("/predict", json={"records": [record]})
@@ -163,7 +190,9 @@ def test_reload_swaps_the_served_version(client, loaded_model, stub_loader):
     assert body["changed"] is True
     assert body["from_version"] == "7"
     assert body["to_version"] == "8"
-    assert client.post("/predict", json={"records": [EXAMPLE_RECORD]}).json()["model_version"] == "8"
+    assert (
+        client.post("/predict", json={"records": [EXAMPLE_RECORD]}).json()["model_version"] == "8"
+    )
 
 
 def test_failed_reload_keeps_the_previous_model_serving(client, stub_loader):
@@ -184,8 +213,18 @@ def test_openapi_documents_the_contract(client):
     assert record["additionalProperties"] is False
 
 
-@pytest.mark.parametrize("path", ["/health", "/ready", "/model-info", "/predict",
-                                  "/metrics", "/monitoring/summary", "/admin/reload"])
+@pytest.mark.parametrize(
+    "path",
+    [
+        "/health",
+        "/ready",
+        "/model-info",
+        "/predict",
+        "/metrics",
+        "/monitoring/summary",
+        "/admin/reload",
+    ],
+)
 def test_every_documented_endpoint_exists(client, path):
     schema = client.get("/openapi.json").json()
     assert path in schema["paths"]

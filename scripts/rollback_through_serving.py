@@ -71,8 +71,11 @@ class ContinuityProbe:
                 try:
                     response = client.post("/predict", json=self.payload)
                     end = time.perf_counter()
-                    version = (response.json().get("model_version")
-                               if response.status_code == 200 else None)
+                    version = (
+                        response.json().get("model_version")
+                        if response.status_code == 200
+                        else None
+                    )
                     record = (start, end, response.status_code, version)
                 except httpx.HTTPError as exc:
                     record = (start, time.perf_counter(), -1, f"{type(exc).__name__}: {exc}")
@@ -82,8 +85,9 @@ class ContinuityProbe:
                     time.sleep(self.interval)
 
     def start(self) -> None:
-        self._threads = [threading.Thread(target=self._run, daemon=True)
-                         for _ in range(self.threads)]
+        self._threads = [
+            threading.Thread(target=self._run, daemon=True) for _ in range(self.threads)
+        ]
         for thread in self._threads:
             thread.start()
 
@@ -106,8 +110,10 @@ class ContinuityProbe:
             "succeeded": ok,
             "failed": total - ok,
             "failure_rate": round((total - ok) / total, 6) if total else None,
-            "status_codes": {str(code): sum(1 for _, _, s, _ in rows if s == code)
-                             for code in sorted({s for _, _, s, _ in rows})},
+            "status_codes": {
+                str(code): sum(1 for _, _, s, _ in rows if s == code)
+                for code in sorted({s for _, _, s, _ in rows})
+            },
             "versions_observed": sorted({v for _, _, s, v in rows if s == 200 and v}),
         }
 
@@ -118,21 +124,25 @@ def ensure_two_versions(config, registry: ModelRegistry) -> None:
         return
     print("registry has fewer than two versions; training a second one")
     split = load_and_split(config)
-    params = {**dict(config.require("model.params")), "learning_rate": 0.01,
-              "max_leaf_nodes": 3}
-    pipeline, run = train_model(config, split=split, params=params,
-                                run_name="rollback-target", evaluate_test=True)
+    params = {**dict(config.require("model.params")), "learning_rate": 0.01, "max_leaf_nodes": 3}
+    pipeline, run = train_model(
+        config, split=split, params=params, run_name="rollback-target", evaluate_test=True
+    )
     X_val, _ = split.xy("validation")
-    logged = log_training_run(pipeline, run, config, input_example=X_val,
-                              tags={"purpose": "rollback-target"})
-    ref = registry.register(logged.model_uri, tags={
-        "purpose": "rollback-target",
-        "validation_roc_auc": f"{run.metrics['validation_roc_auc']:.6f}",
-        "test_roc_auc": f"{run.metrics['test_roc_auc']:.6f}",
-        "dataset_version": run.dataset_version,
-        "git_commit": run.git_commit,
-        "training_fingerprint": run.training_fingerprint,
-    })
+    logged = log_training_run(
+        pipeline, run, config, input_example=X_val, tags={"purpose": "rollback-target"}
+    )
+    ref = registry.register(
+        logged.model_uri,
+        tags={
+            "purpose": "rollback-target",
+            "validation_roc_auc": f"{run.metrics['validation_roc_auc']:.6f}",
+            "test_roc_auc": f"{run.metrics['test_roc_auc']:.6f}",
+            "dataset_version": run.dataset_version,
+            "git_commit": run.git_commit,
+            "training_fingerprint": run.training_fingerprint,
+        },
+    )
     print(f"  registered version {ref.version}")
 
 
@@ -171,13 +181,18 @@ def switch(base_url: str, action, label: str) -> dict:
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description=__doc__,
-                                     formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
     parser.add_argument("--port", type=int, default=None)
     parser.add_argument("--probe-interval", type=float, default=0.0)
     parser.add_argument("--probe-threads", type=int, default=4)
-    parser.add_argument("--settle", type=float, default=2.0,
-                        help="seconds of steady traffic before and after each switch")
+    parser.add_argument(
+        "--settle",
+        type=float,
+        default=2.0,
+        help="seconds of steady traffic before and after each switch",
+    )
     args = parser.parse_args(argv)
 
     config = load_config()
@@ -205,11 +220,14 @@ def main(argv: list[str] | None = None) -> int:
     results_dir.mkdir(parents=True, exist_ok=True)
     server = ServerProcess(host, port, log_path=results_dir / "rollback_server.log")
     server.start()
-    print(f"server ready in {server.cold_start_seconds:.3f}s, serving version "
-          f"{served_version(server.base_url)}")
+    print(
+        f"server ready in {server.cold_start_seconds:.3f}s, serving version "
+        f"{served_version(server.base_url)}"
+    )
 
-    probe = ContinuityProbe(server.base_url, payload, interval=args.probe_interval,
-                            threads=args.probe_threads)
+    probe = ContinuityProbe(
+        server.base_url, payload, interval=args.probe_interval, threads=args.probe_threads
+    )
     probe.start()
     time.sleep(args.settle)
 
@@ -228,10 +246,12 @@ def main(argv: list[str] | None = None) -> int:
         start, end = record.pop("_window")
         record["switch_window"] = {"start": round(start, 6), "end": round(end, 6)}
         record["traffic_during_switch"] = ContinuityProbe.summarise(probe.window(start, end))
-        print(f"{record['label']:9s}: {record['served_before']} -> {record['served_after']} "
-              f"in {record['end_to_end_seconds']:.3f}s, "
-              f"{record['traffic_during_switch']['failed']} failed request(s) of "
-              f"{record['traffic_during_switch']['requests']} in flight")
+        print(
+            f"{record['label']:9s}: {record['served_before']} -> {record['served_after']} "
+            f"in {record['end_to_end_seconds']:.3f}s, "
+            f"{record['traffic_during_switch']['failed']} failed request(s) of "
+            f"{record['traffic_during_switch']['requests']} in flight"
+        )
 
     overall = ContinuityProbe.summarise(probe.results)
     success = (
@@ -254,16 +274,20 @@ def main(argv: list[str] | None = None) -> int:
         "probe_threads": args.probe_threads,
         "host_load_average": os.getloadavg(),
         "final_production_version": registry.production().version,
-        "final_previous_alias": (registry.resolve_alias(PREVIOUS).version
-                                 if registry.resolve_alias(PREVIOUS) else None),
+        "final_previous_alias": (
+            registry.resolve_alias(PREVIOUS).version if registry.resolve_alias(PREVIOUS) else None
+        ),
         "rollback_verified_through_serving": success,
     }
     (results_dir / "rollback_through_serving.json").write_text(json.dumps(report, indent=2))
 
-    print(f"\ntotal probe traffic: {overall['requests']} requests, "
-          f"{overall['failed']} failed, versions seen {overall['versions_observed']}")
-    print(f"final production version: {report['final_production_version']} "
-          f"(expected {original})")
+    print(
+        f"\ntotal probe traffic: {overall['requests']} requests, "
+        f"{overall['failed']} failed, versions seen {overall['versions_observed']}"
+    )
+    print(
+        f"final production version: {report['final_production_version']} " f"(expected {original})"
+    )
 
     if not success:
         print("ROLLBACK_THROUGH_SERVING_FAILED", file=sys.stderr)

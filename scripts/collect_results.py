@@ -38,31 +38,33 @@ def evaluation_rows(summary: dict | None) -> list[dict]:
     rows = []
     for run in summary.get("runs", []):
         for split, result in (run.get("evaluations") or {}).items():
-            rows.append({
-                "run_name": run["run_name"],
-                "estimator": run["estimator"],
-                "split": split,
-                "n_rows": result.get("n_rows"),
-                "positive_rate": result.get("positive_rate"),
-                "roc_auc": result.get("roc_auc"),
-                "pr_auc": result.get("pr_auc"),
-                "accuracy": result.get("accuracy"),
-                "precision": result.get("precision"),
-                "recall": result.get("recall"),
-                "f1": result.get("f1"),
-                "brier": result.get("brier"),
-                "log_loss": result.get("log_loss"),
-                "threshold": result.get("threshold"),
-                "training_seconds": run.get("training_seconds"),
-                "seed": run.get("seed"),
-                "dataset_version": run.get("dataset_version"),
-                "split_id": run.get("split_id"),
-                "code_version": run.get("code_version"),
-                "git_commit": run.get("git_commit"),
-                "config_digest": run.get("config_digest"),
-                "training_fingerprint": run.get("training_fingerprint"),
-                "selected": run["run_name"] == summary.get("selected_run"),
-            })
+            rows.append(
+                {
+                    "run_name": run["run_name"],
+                    "estimator": run["estimator"],
+                    "split": split,
+                    "n_rows": result.get("n_rows"),
+                    "positive_rate": result.get("positive_rate"),
+                    "roc_auc": result.get("roc_auc"),
+                    "pr_auc": result.get("pr_auc"),
+                    "accuracy": result.get("accuracy"),
+                    "precision": result.get("precision"),
+                    "recall": result.get("recall"),
+                    "f1": result.get("f1"),
+                    "brier": result.get("brier"),
+                    "log_loss": result.get("log_loss"),
+                    "threshold": result.get("threshold"),
+                    "training_seconds": run.get("training_seconds"),
+                    "seed": run.get("seed"),
+                    "dataset_version": run.get("dataset_version"),
+                    "split_id": run.get("split_id"),
+                    "code_version": run.get("code_version"),
+                    "git_commit": run.get("git_commit"),
+                    "config_digest": run.get("config_digest"),
+                    "training_fingerprint": run.get("training_fingerprint"),
+                    "selected": run["run_name"] == summary.get("selected_run"),
+                }
+            )
     return rows
 
 
@@ -77,10 +79,17 @@ def main() -> int:
     smoke = read_json(results / "serving" / "smoke_test.json")
     retraining = read_json(results / "retraining" / "retraining_experiment.json")
 
-    missing = [name for name, payload in {
-        "training": training, "drift": drift, "rollback": rollback,
-        "smoke": smoke, "retraining": retraining,
-    }.items() if payload is None]
+    missing = [
+        name
+        for name, payload in {
+            "training": training,
+            "drift": drift,
+            "rollback": rollback,
+            "smoke": smoke,
+            "retraining": retraining,
+        }.items()
+        if payload is None
+    ]
 
     rows = evaluation_rows(training)
     if rows:
@@ -97,8 +106,11 @@ def main() -> int:
 
     best_single = None
     if not serving.empty:
-        pinned = serving[(serving.get("server_thread_pin") == 1)
-                         & (serving["concurrency"] == 1) & (serving["batch_size"] == 1)]
+        pinned = serving[
+            (serving.get("server_thread_pin") == 1)
+            & (serving["concurrency"] == 1)
+            & (serving["batch_size"] == 1)
+        ]
         if not pinned.empty:
             best_single = pinned.sort_values("throughput_rps", ascending=False).iloc[0].to_dict()
 
@@ -117,12 +129,19 @@ def main() -> int:
             "rows": int(len(serving)),
             "configurations": sorted(serving["scenario"].tolist()) if not serving.empty else [],
             "best_single_request": best_single,
-            "any_run_on_busy_host": (bool(serving["host_busy_before_run"].any())
-                                     if "host_busy_before_run" in serving else None),
-            "cold_start_seconds": (float(serving["cold_start_seconds"].min())
-                                   if "cold_start_seconds" in serving and not serving.empty else None),
-            "total_errors": (int(serving["requests_failed"].sum())
-                             if "requests_failed" in serving else None),
+            "any_run_on_busy_host": (
+                bool(serving["host_busy_before_run"].any())
+                if "host_busy_before_run" in serving
+                else None
+            ),
+            "cold_start_seconds": (
+                float(serving["cold_start_seconds"].min())
+                if "cold_start_seconds" in serving and not serving.empty
+                else None
+            ),
+            "total_errors": (
+                int(serving["requests_failed"].sum()) if "requests_failed" in serving else None
+            ),
         },
         "drift": {
             "scenarios": int(len(drift_frame)),
@@ -134,7 +153,9 @@ def main() -> int:
         "retraining": (retraining or {}).get("summary"),
         "rollback": {
             "verified_through_serving": (rollback or {}).get("rollback_verified_through_serving"),
-            "promotion_seconds": ((rollback or {}).get("promotion") or {}).get("end_to_end_seconds"),
+            "promotion_seconds": ((rollback or {}).get("promotion") or {}).get(
+                "end_to_end_seconds"
+            ),
             "rollback_seconds": ((rollback or {}).get("rollback") or {}).get("end_to_end_seconds"),
             "probe_requests": ((rollback or {}).get("overall_traffic") or {}).get("requests"),
             "probe_failed": ((rollback or {}).get("overall_traffic") or {}).get("failed"),
@@ -145,8 +166,10 @@ def main() -> int:
     print("results/summary.json     written")
 
     if missing:
-        print(f"\nNOTE: no results found for {missing}. Those sections are empty; run the "
-              f"corresponding script to populate them.")
+        print(
+            f"\nNOTE: no results found for {missing}. Those sections are empty; run the "
+            f"corresponding script to populate them."
+        )
     print("COLLECT_RESULTS_OK")
     return 0
 

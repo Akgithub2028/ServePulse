@@ -16,9 +16,15 @@ from mlserve.models.train import train_model
 
 @pytest.fixture(scope="module")
 def fast_params():
-    return {"learning_rate": 0.2, "max_iter": 15, "max_leaf_nodes": 15,
-            "min_samples_leaf": 20, "l2_regularization": 1.0, "max_bins": 255,
-            "early_stopping": False}
+    return {
+        "learning_rate": 0.2,
+        "max_iter": 15,
+        "max_leaf_nodes": 15,
+        "min_samples_leaf": 20,
+        "l2_regularization": 1.0,
+        "max_bins": 255,
+        "early_stopping": False,
+    }
 
 
 @pytest.fixture(scope="module")
@@ -47,15 +53,25 @@ def _versions(module_config, small_split, fast_params):
     ]
     for estimator, params, label in specs:
         pipeline, run = train_model(
-            module_config, split=small_split, estimator=estimator, params=params,
-            run_name=f"{label}-model", evaluate_test=False,
+            module_config,
+            split=small_split,
+            estimator=estimator,
+            params=params,
+            run_name=f"{label}-model",
+            evaluate_test=False,
         )
-        logged = log_training_run(pipeline, run, module_config, input_example=X_val,
-                                  tags={"label": label})
-        refs.append(registry.register(logged.model_uri, tags={
-            "label": label,
-            "validation_roc_auc": f"{run.metrics['validation_roc_auc']:.6f}",
-        }))
+        logged = log_training_run(
+            pipeline, run, module_config, input_example=X_val, tags={"label": label}
+        )
+        refs.append(
+            registry.register(
+                logged.model_uri,
+                tags={
+                    "label": label,
+                    "validation_roc_auc": f"{run.metrics['validation_roc_auc']:.6f}",
+                },
+            )
+        )
     return registry, refs
 
 
@@ -84,13 +100,20 @@ def test_best_run_selects_the_highest_primary_metric(module_config, registry_wit
     assert top["metrics.validation_roc_auc"] == runs["metrics.validation_roc_auc"].max()
 
 
-def test_a_failed_training_run_leaves_no_registry_version(module_config, registry_with_versions, small_split):
+def test_a_failed_training_run_leaves_no_registry_version(
+    module_config, registry_with_versions, small_split
+):
     """A run that raises must not produce a promotable artefact."""
     registry, _ = registry_with_versions
     before = len(registry.list_versions())
     with pytest.raises(ValueError):
-        train_model(module_config, split=small_split, estimator="not_an_estimator",
-                    params={}, evaluate_test=False)
+        train_model(
+            module_config,
+            split=small_split,
+            estimator="not_an_estimator",
+            params={},
+            evaluate_test=False,
+        )
     assert len(registry.list_versions()) == before
 
 

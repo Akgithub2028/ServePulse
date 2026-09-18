@@ -88,9 +88,11 @@ def wait_for_quiet_host(timeout: float, *, poll: float = 15.0) -> dict:
     pressure = host_pressure()
     while time.monotonic() < deadline and pressure["busy"]:
         remaining = int(deadline - time.monotonic())
-        print(f"  host busy: {pressure['cpu_utilisation']:.0%} CPU in use "
-              f"({pressure['free_cpus']} of {pressure['cpu_count']} cores free, "
-              f"limit {BUSY_CPU_FRACTION:.0%}); waiting up to {remaining}s")
+        print(
+            f"  host busy: {pressure['cpu_utilisation']:.0%} CPU in use "
+            f"({pressure['free_cpus']} of {pressure['cpu_count']} cores free, "
+            f"limit {BUSY_CPU_FRACTION:.0%}); waiting up to {remaining}s"
+        )
         time.sleep(poll)
         pressure = host_pressure()
     return pressure
@@ -166,8 +168,15 @@ def find_free_port(host: str, preferred: int, *, attempts: int = 40) -> int:
 class ServerProcess:
     """Starts uvicorn, waits for readiness, and samples its resource usage."""
 
-    def __init__(self, host: str, port: int, *, log_path: Path, workers: int = 1,
-                 thread_pin: int | None = None):
+    def __init__(
+        self,
+        host: str,
+        port: int,
+        *,
+        log_path: Path,
+        workers: int = 1,
+        thread_pin: int | None = None,
+    ):
         self.host, self.port = host, port
         self.workers = workers
         #: When set, caps the OpenMP/BLAS thread pools inside the server process.
@@ -183,9 +192,19 @@ class ServerProcess:
         self._sampling = False
         self._thread: threading.Thread | None = None
         self.command = [
-            sys.executable, "-m", "uvicorn", "mlserve.serving.main:app",
-            "--host", host, "--port", str(port), "--workers", str(workers),
-            "--log-level", "warning", "--no-access-log",
+            sys.executable,
+            "-m",
+            "uvicorn",
+            "mlserve.serving.main:app",
+            "--host",
+            host,
+            "--port",
+            str(port),
+            "--workers",
+            str(workers),
+            "--log-level",
+            "warning",
+            "--no-access-log",
         ]
 
     def start(self) -> None:
@@ -199,16 +218,26 @@ class ServerProcess:
         self.log_path.parent.mkdir(parents=True, exist_ok=True)
         env = dict(os.environ)
         if self.thread_pin is not None:
-            for name in ("OMP_NUM_THREADS", "OPENBLAS_NUM_THREADS", "MKL_NUM_THREADS",
-                         "VECLIB_MAXIMUM_THREADS", "NUMEXPR_NUM_THREADS"):
+            for name in (
+                "OMP_NUM_THREADS",
+                "OPENBLAS_NUM_THREADS",
+                "MKL_NUM_THREADS",
+                "VECLIB_MAXIMUM_THREADS",
+                "NUMEXPR_NUM_THREADS",
+            ):
                 env[name] = str(self.thread_pin)
-        self.env_overrides = {k: env[k] for k in
-                              ("OMP_NUM_THREADS", "OPENBLAS_NUM_THREADS", "MKL_NUM_THREADS")
-                              if k in env}
+        self.env_overrides = {
+            k: env[k]
+            for k in ("OMP_NUM_THREADS", "OPENBLAS_NUM_THREADS", "MKL_NUM_THREADS")
+            if k in env
+        }
         started = time.perf_counter()
         with open(self.log_path, "wb") as log:
             self.process = subprocess.Popen(
-                self.command, cwd=project_root(), stdout=log, stderr=subprocess.STDOUT,
+                self.command,
+                cwd=project_root(),
+                stdout=log,
+                stderr=subprocess.STDOUT,
                 env=env,
             )
         deadline = time.monotonic() + STARTUP_TIMEOUT
@@ -295,8 +324,14 @@ def build_payloads(n: int, batch_size: int, seed: int) -> list[dict]:
     return payloads
 
 
-def worker(base_url: str, payloads: list[dict], stop_at: float, results: list,
-           lock: threading.Lock, offset: int) -> None:
+def worker(
+    base_url: str,
+    payloads: list[dict],
+    stop_at: float,
+    results: list,
+    lock: threading.Lock,
+    offset: int,
+) -> None:
     latencies, ok, failed, records = [], 0, 0, 0
     with httpx.Client(base_url=base_url, timeout=30.0) as client:
         i = offset
@@ -320,15 +355,15 @@ def worker(base_url: str, payloads: list[dict], stop_at: float, results: list,
         results.append((latencies, ok, failed, records))
 
 
-def run_phase(base_url: str, payloads: list[dict], *, concurrency: int,
-              duration: float, label: str) -> tuple[list[float], int, int, int, float]:
+def run_phase(
+    base_url: str, payloads: list[dict], *, concurrency: int, duration: float, label: str
+) -> tuple[list[float], int, int, int, float]:
     results: list = []
     lock = threading.Lock()
     stop_at = time.perf_counter() + duration
     started = time.perf_counter()
     threads = [
-        threading.Thread(target=worker,
-                         args=(base_url, payloads, stop_at, results, lock, t * 37))
+        threading.Thread(target=worker, args=(base_url, payloads, stop_at, results, lock, t * 37))
         for t in range(concurrency)
     ]
     for thread in threads:
@@ -345,24 +380,37 @@ def run_phase(base_url: str, payloads: list[dict], *, concurrency: int,
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description=__doc__,
-                                     formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
     parser.add_argument("--duration", type=float, default=20.0, help="measured seconds")
     parser.add_argument("--warmup", type=float, default=5.0, help="excluded warm-up seconds")
     parser.add_argument("--concurrency", type=int, nargs="+", default=[1, 4, 8])
     parser.add_argument("--batch-size", type=int, nargs="+", default=[1, 32])
     parser.add_argument("--payloads", type=int, default=256)
     parser.add_argument("--port", type=int, default=None)
-    parser.add_argument("--thread-pin", type=int, default=1,
-                        help="cap OpenMP/BLAS threads inside the server. 1 is the "
-                             "production setting and the default; pass 0 to leave the "
-                             "pools uncapped, which is the documented comparison case.")
-    parser.add_argument("--workers", type=int, default=1,
-                        help="uvicorn worker processes; >1 tests whether the throughput "
-                             "ceiling is the GIL rather than the model")
+    parser.add_argument(
+        "--thread-pin",
+        type=int,
+        default=1,
+        help="cap OpenMP/BLAS threads inside the server. 1 is the "
+        "production setting and the default; pass 0 to leave the "
+        "pools uncapped, which is the documented comparison case.",
+    )
+    parser.add_argument(
+        "--workers",
+        type=int,
+        default=1,
+        help="uvicorn worker processes; >1 tests whether the throughput "
+        "ceiling is the GIL rather than the model",
+    )
     parser.add_argument("--seed", type=int, default=None)
-    parser.add_argument("--wait-for-quiet-host", type=float, default=0.0,
-                        help="seconds to wait for the host load to fall below the limit")
+    parser.add_argument(
+        "--wait-for-quiet-host",
+        type=float,
+        default=0.0,
+        help="seconds to wait for the host load to fall below the limit",
+    )
     args = parser.parse_args(argv)
 
     config = load_config()
@@ -373,32 +421,42 @@ def main(argv: list[str] | None = None) -> int:
     results_dir.mkdir(parents=True, exist_ok=True)
 
     pressure = host_pressure()
-    print(f"host: {pressure['cpu_count']} CPUs, {pressure['cpu_utilisation']:.0%} in use "
-          f"by other work ({pressure['free_cpus']} cores free); "
-          f"1m load average {pressure['load_average_1m']} "
-          f"(not used as the gate -- see host_pressure())")
+    print(
+        f"host: {pressure['cpu_count']} CPUs, {pressure['cpu_utilisation']:.0%} in use "
+        f"by other work ({pressure['free_cpus']} cores free); "
+        f"1m load average {pressure['load_average_1m']} "
+        f"(not used as the gate -- see host_pressure())"
+    )
     if pressure["busy"] and args.wait_for_quiet_host > 0:
         pressure = wait_for_quiet_host(args.wait_for_quiet_host)
     if pressure["busy"]:
-        print(f"WARNING: {pressure['cpu_utilisation']:.0%} of this machine is already "
-              f"busy (limit {BUSY_CPU_FRACTION:.0%}). Latency percentiles from this run "
-              f"measure OS scheduling delay as much as the service, and every affected "
-              f"row is flagged host_busy_before_run=True.\n")
+        print(
+            f"WARNING: {pressure['cpu_utilisation']:.0%} of this machine is already "
+            f"busy (limit {BUSY_CPU_FRACTION:.0%}). Latency percentiles from this run "
+            f"measure OS scheduling delay as much as the service, and every affected "
+            f"row is flagged host_busy_before_run=True.\n"
+        )
 
     chosen_port = find_free_port(host, port)
     if chosen_port != port:
         print(f"port {port} is busy; using {chosen_port} instead")
     tag = f"{'pin' if args.thread_pin else 'nopin'}_w{args.workers}"
-    server = ServerProcess(host, chosen_port, workers=args.workers,
-                           thread_pin=args.thread_pin or None,
-                           log_path=results_dir / f"load_test_server_{tag}.log")
+    server = ServerProcess(
+        host,
+        chosen_port,
+        workers=args.workers,
+        thread_pin=args.thread_pin or None,
+        log_path=results_dir / f"load_test_server_{tag}.log",
+    )
     print(f"starting: {' '.join(server.command)}")
     server.start()
     print(f"ready in {server.cold_start_seconds:.3f}s (cold start)\n")
 
     rows: list[LoadTestResult] = []
     try:
-        model_version = httpx.get(f"{server.base_url}/health", timeout=5.0).json().get("model_version")
+        model_version = (
+            httpx.get(f"{server.base_url}/health", timeout=5.0).json().get("model_version")
+        )
         for batch_size in args.batch_size:
             payloads = build_payloads(args.payloads, batch_size, seed)
             for concurrency in args.concurrency:
@@ -408,13 +466,21 @@ def main(argv: list[str] | None = None) -> int:
                 # warm-up traffic is running, so "was someone else using the machine?"
                 # is answered without counting our own load.
                 before = host_pressure(sample_seconds=1.5)
-                run_phase(server.base_url, payloads, concurrency=concurrency,
-                          duration=args.warmup, label=f"{label}-warmup")
+                run_phase(
+                    server.base_url,
+                    payloads,
+                    concurrency=concurrency,
+                    duration=args.warmup,
+                    label=f"{label}-warmup",
+                )
                 psutil.cpu_percent(interval=None)
                 server.begin_sampling()
                 latencies, ok, failed, records, wall = run_phase(
-                    server.base_url, payloads, concurrency=concurrency,
-                    duration=args.duration, label=label,
+                    server.base_url,
+                    payloads,
+                    concurrency=concurrency,
+                    duration=args.duration,
+                    label=label,
                 )
                 usage = server.end_sampling()
 
@@ -454,12 +520,14 @@ def main(argv: list[str] | None = None) -> int:
                     model_version=model_version,
                 )
                 rows.append(result)
-                print(f"  {label:10s} rps={result.throughput_rps:8.1f} "
-                      f"rec/s={result.throughput_records_per_second:9.1f} "
-                      f"p50={result.p50_ms:7.2f} p95={result.p95_ms:7.2f} "
-                      f"p99={result.p99_ms:8.2f} err={result.error_rate:.3f} "
-                      f"rss={result.server_rss_mb_mean}MB cpu={during_cpu:.0%}"
-                      + ("  [OTHER WORK ON HOST]" if before["busy"] else ""))
+                print(
+                    f"  {label:10s} rps={result.throughput_rps:8.1f} "
+                    f"rec/s={result.throughput_records_per_second:9.1f} "
+                    f"p50={result.p50_ms:7.2f} p95={result.p95_ms:7.2f} "
+                    f"p99={result.p99_ms:8.2f} err={result.error_rate:.3f} "
+                    f"rss={result.server_rss_mb_mean}MB cpu={during_cpu:.0%}"
+                    + ("  [OTHER WORK ON HOST]" if before["busy"] else "")
+                )
     finally:
         server.stop()
 
@@ -473,30 +541,37 @@ def main(argv: list[str] | None = None) -> int:
         ignore_index=True,
     )
     combined.to_csv(root / "SERVING_BENCHMARKS.csv", index=False)
-    (results_dir / f"load_test_{tag}.json").write_text(json.dumps({
-        "command": server.command,
-        "workers": args.workers,
-        "thread_pin": args.thread_pin,
-        "server_env_overrides": getattr(server, "env_overrides", {}),
-        "seed": seed,
-        "payloads": args.payloads,
-        "duration_seconds": args.duration,
-        "warmup_seconds": args.warmup,
-        "environment": environment_info().to_dict(),
-        "host_cpu_count": os.cpu_count(),
-        "host_load_average": os.getloadavg(),
-        "busy_cpu_fraction_limit": BUSY_CPU_FRACTION,
-        "host_pressure_at_start": pressure,
-        "any_run_on_busy_host": bool(frame["host_busy_before_run"].any()),
-        "results": [r.to_dict() for r in rows],
-    }, indent=2))
+    (results_dir / f"load_test_{tag}.json").write_text(
+        json.dumps(
+            {
+                "command": server.command,
+                "workers": args.workers,
+                "thread_pin": args.thread_pin,
+                "server_env_overrides": getattr(server, "env_overrides", {}),
+                "seed": seed,
+                "payloads": args.payloads,
+                "duration_seconds": args.duration,
+                "warmup_seconds": args.warmup,
+                "environment": environment_info().to_dict(),
+                "host_cpu_count": os.cpu_count(),
+                "host_load_average": os.getloadavg(),
+                "busy_cpu_fraction_limit": BUSY_CPU_FRACTION,
+                "host_pressure_at_start": pressure,
+                "any_run_on_busy_host": bool(frame["host_busy_before_run"].any()),
+                "results": [r.to_dict() for r in rows],
+            },
+            indent=2,
+        )
+    )
 
     print(f"\nwrote {root / 'SERVING_BENCHMARKS.csv'}")
     if bool(frame["host_busy_before_run"].any()):
-        print("NOTE: at least one run started while other work was using more than "
-              f"{BUSY_CPU_FRACTION:.0%} of the machine and is flagged "
-              "host_busy_before_run=True. Re-run on an idle machine before quoting "
-              "those latency figures.")
+        print(
+            "NOTE: at least one run started while other work was using more than "
+            f"{BUSY_CPU_FRACTION:.0%} of the machine and is flagged "
+            "host_busy_before_run=True. Re-run on an idle machine before quoting "
+            "those latency figures."
+        )
     print("LOAD_TEST_OK")
     return 0
 

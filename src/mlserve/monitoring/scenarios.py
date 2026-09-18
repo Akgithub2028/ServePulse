@@ -49,8 +49,9 @@ class Scenario:
         raise NotImplementedError
 
 
-def _shift_numeric(frame: pd.DataFrame, column: str, delta: float,
-                   lo: float, hi: float) -> pd.DataFrame:
+def _shift_numeric(
+    frame: pd.DataFrame, column: str, delta: float, lo: float, hi: float
+) -> pd.DataFrame:
     frame[column] = (frame[column].astype(float) + delta).clip(lo, hi).round().astype(int)
     return frame
 
@@ -73,7 +74,8 @@ class SmallDrift(Scenario):
             "small_drift",
             "Age +2 years for everyone, and hours/week +3 for a random 12% of records "
             "-- a change too small to be worth acting on.",
-            False, "covariate",
+            False,
+            "covariate",
         )
 
     def apply(self, frame, rng):
@@ -90,8 +92,8 @@ class SmallDrift(Scenario):
             idx = rng.choice(len(out), size=n, replace=False)
             column = out.columns.get_loc("hours_per_week")
             out.iloc[idx, column] = (
-                out.iloc[idx, column].astype(float) + 3
-            ).clip(1, 99).round().astype(int)
+                (out.iloc[idx, column].astype(float) + 3).clip(1, 99).round().astype(int)
+            )
         return out
 
 
@@ -101,14 +103,17 @@ class LargeDrift(Scenario):
             "large_drift",
             "Age +12, hours/week +12, capital gains x3, occupation mix reweighted "
             "towards Exec-managerial and Prof-specialty.",
-            True, "covariate",
+            True,
+            "covariate",
         )
 
     def apply(self, frame, rng):
         out = frame.copy()
         out = _shift_numeric(out, "age", 12, 17, 90)
         out = _shift_numeric(out, "hours_per_week", 12, 1, 99)
-        out["capital_gain"] = (out["capital_gain"].astype(float) * 3).clip(0, 99999).round().astype(int)
+        out["capital_gain"] = (
+            (out["capital_gain"].astype(float) * 3).clip(0, 99999).round().astype(int)
+        )
         # Resample rows so that high-earning occupations are over-represented: this
         # moves a categorical distribution without inventing impossible records.
         favoured = out["occupation"].isin(["Exec-managerial", "Prof-specialty"])
@@ -124,7 +129,8 @@ class MissingFeatureDrift(Scenario):
             "missing_feature",
             "The 'occupation' column is dropped and 'hours_per_week' is 30% null -- "
             "an upstream schema break rather than a distribution shift.",
-            True, "schema",
+            True,
+            "schema",
         )
 
     def apply(self, frame, rng):
@@ -143,7 +149,8 @@ class PerformanceDrift(Scenario):
             "Concept shift: labels are re-drawn so education matters far less and "
             "hours worked far more, while the marginal feature distributions are "
             "left almost untouched.",
-            True, "concept",
+            True,
+            "concept",
         )
 
     def apply(self, frame, rng):
@@ -156,8 +163,8 @@ class PerformanceDrift(Scenario):
         z = (
             -4.0
             + 0.02 * out["age"].astype(float)
-            + 0.01 * out["education_num"].astype(float)      # was the dominant driver
-            + 0.075 * out["hours_per_week"].astype(float)    # now dominant
+            + 0.01 * out["education_num"].astype(float)  # was the dominant driver
+            + 0.075 * out["hours_per_week"].astype(float)  # now dominant
             + 0.00004 * out["capital_gain"].astype(float)
         )
         probability = 1.0 / (1.0 + np.exp(-z))
@@ -172,7 +179,8 @@ class CovariateShift(Scenario):
             "covariate_shift",
             "Education distribution moved up by 2 levels and workclass reweighted "
             "towards self-employment.",
-            True, "covariate",
+            True,
+            "covariate",
         )
 
     def apply(self, frame, rng):
@@ -191,7 +199,8 @@ class PriorShift(Scenario):
             "prior_shift",
             "Class balance changed by over-sampling the positive class to ~50%, "
             "with the per-class feature distributions unchanged.",
-            True, "prior",
+            True,
+            "prior",
         )
 
     def apply(self, frame, rng):
@@ -205,25 +214,38 @@ class PriorShift(Scenario):
         half = len(out) // 2
         pos_idx = rng.choice(len(positives), size=half, replace=True)
         neg_idx = rng.choice(len(negatives), size=len(out) - half, replace=True)
-        combined = pd.concat(
-            [positives.iloc[pos_idx], negatives.iloc[neg_idx]], ignore_index=True
-        )
-        return combined.sample(frac=1.0, random_state=int(rng.integers(0, 2**31 - 1))).reset_index(drop=True)
+        combined = pd.concat([positives.iloc[pos_idx], negatives.iloc[neg_idx]], ignore_index=True)
+        return combined.sample(
+            frac=1.0, random_state=int(rng.integers(0, 2**31 - 1))
+        ).reset_index(drop=True)
 
 
 SCENARIOS: dict[str, Scenario] = {
     s.name: s
     for s in [
-        NoDrift(), SmallDrift(), LargeDrift(), MissingFeatureDrift(),
-        PerformanceDrift(), CovariateShift(), PriorShift(),
+        NoDrift(),
+        SmallDrift(),
+        LargeDrift(),
+        MissingFeatureDrift(),
+        PerformanceDrift(),
+        CovariateShift(),
+        PriorShift(),
     ]
 }
 
 #: The five the brief requires, in order. The other two are supporting cases.
-REQUIRED_SCENARIOS = ["no_drift", "small_drift", "large_drift", "missing_feature", "performance_drift"]
+REQUIRED_SCENARIOS = [
+    "no_drift",
+    "small_drift",
+    "large_drift",
+    "missing_feature",
+    "performance_drift",
+]
 
 
-def build_scenario(name: str, base: pd.DataFrame, *, seed: int, n_rows: int | None = None) -> pd.DataFrame:
+def build_scenario(
+    name: str, base: pd.DataFrame, *, seed: int, n_rows: int | None = None
+) -> pd.DataFrame:
     """Materialise one scenario window from ``base``.
 
     ``seed`` fully determines both the row sample and any randomness in the
@@ -242,8 +264,12 @@ def build_scenario(name: str, base: pd.DataFrame, *, seed: int, n_rows: int | No
 def scenario_table() -> pd.DataFrame:
     return pd.DataFrame(
         [
-            {"scenario": s.name, "kind": s.kind, "expect_drift": s.expect_drift,
-             "description": s.description}
+            {
+                "scenario": s.name,
+                "kind": s.kind,
+                "expect_drift": s.expect_drift,
+                "description": s.description,
+            }
             for s in SCENARIOS.values()
         ]
     )

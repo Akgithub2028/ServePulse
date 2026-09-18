@@ -85,8 +85,10 @@ class ValidationReport:
     def summary(self) -> str:
         if self.ok and not self.warnings:
             return "validation passed with no findings"
-        lines = [f"validation {'passed' if self.ok else 'FAILED'}: "
-                 f"{len(self.errors)} error(s), {len(self.warnings)} warning(s)"]
+        lines = [
+            f"validation {'passed' if self.ok else 'FAILED'}: "
+            f"{len(self.errors)} error(s), {len(self.warnings)} warning(s)"
+        ]
         for f in self.findings:
             lines.append(f"  [{f.severity.value}] {f.check}: {f.message}")
         return "\n".join(lines)
@@ -120,16 +122,24 @@ def _column_checks(frame: pd.DataFrame, report: ValidationReport, *, require_tar
 
     missing = sorted(expected - present)
     if missing:
-        report.add("schema.missing_columns", Severity.ERROR,
-                   f"required column(s) absent: {missing}", missing=missing)
+        report.add(
+            "schema.missing_columns",
+            Severity.ERROR,
+            f"required column(s) absent: {missing}",
+            missing=missing,
+        )
 
     unexpected = sorted(present - set(FEATURE_NAMES) - {TARGET})
     if unexpected:
         # An unknown column is an error, not a warning: at serving time it usually
         # means the caller is on a different contract version, and silently ignoring
         # it is how a client ships a renamed field straight into production.
-        report.add("schema.unexpected_columns", Severity.ERROR,
-                   f"column(s) not in the contract: {unexpected}", unexpected=unexpected)
+        report.add(
+            "schema.unexpected_columns",
+            Severity.ERROR,
+            f"column(s) not in the contract: {unexpected}",
+            unexpected=unexpected,
+        )
 
     return not missing
 
@@ -149,21 +159,34 @@ def _type_checks(frame: pd.DataFrame, report: ValidationReport) -> None:
         if not pd.api.types.is_numeric_dtype(col):
             coerced = pd.to_numeric(col, errors="coerce")
             n_bad = int((coerced.isna() & col.notna()).sum())
-            report.add("types.numeric", Severity.ERROR,
-                       f"{name} has dtype {col.dtype}, expected a numeric dtype",
-                       column=name, dtype=str(col.dtype), n_uncoercible=n_bad)
+            report.add(
+                "types.numeric",
+                Severity.ERROR,
+                f"{name} has dtype {col.dtype}, expected a numeric dtype",
+                column=name,
+                dtype=str(col.dtype),
+                n_uncoercible=n_bad,
+            )
         elif pd.api.types.is_bool_dtype(col):
-            report.add("types.numeric", Severity.ERROR,
-                       f"{name} is boolean, expected a real numeric dtype", column=name)
+            report.add(
+                "types.numeric",
+                Severity.ERROR,
+                f"{name} is boolean, expected a real numeric dtype",
+                column=name,
+            )
 
     for name in CATEGORICAL_FEATURES:
         if name not in frame.columns:
             continue
         col = frame[name]
         if pd.api.types.is_numeric_dtype(col) or pd.api.types.is_bool_dtype(col):
-            report.add("types.categorical", Severity.ERROR,
-                       f"{name} has dtype {col.dtype}, expected string labels",
-                       column=name, dtype=str(col.dtype))
+            report.add(
+                "types.categorical",
+                Severity.ERROR,
+                f"{name} has dtype {col.dtype}, expected string labels",
+                column=name,
+                dtype=str(col.dtype),
+            )
 
 
 def _missing_checks(frame: pd.DataFrame, report: ValidationReport) -> None:
@@ -175,9 +198,13 @@ def _missing_checks(frame: pd.DataFrame, report: ValidationReport) -> None:
             # Nullability in this contract is about the survey's '?' token, which
             # ingestion maps to an explicit category. A true NaN always means the
             # value was lost in transit and is always an error.
-            report.add("missing.nulls", Severity.ERROR,
-                       f"{name} has {n_null} null value(s); the contract has no null encoding",
-                       column=name, n_null=n_null)
+            report.add(
+                "missing.nulls",
+                Severity.ERROR,
+                f"{name} has {n_null} null value(s); the contract has no null encoding",
+                column=name,
+                n_null=n_null,
+            )
 
 
 def _range_checks(frame: pd.DataFrame, report: ValidationReport) -> None:
@@ -191,19 +218,29 @@ def _range_checks(frame: pd.DataFrame, report: ValidationReport) -> None:
         if spec.minimum is not None:
             below = col[col < spec.minimum]
             if len(below):
-                report.add("range.below_minimum", Severity.ERROR,
-                           f"{name} has {len(below)} value(s) below the contract minimum {spec.minimum}"
-                           f" (observed min {col.min()})",
-                           column=name, minimum=spec.minimum, observed_min=float(col.min()),
-                           n_violations=int(len(below)))
+                report.add(
+                    "range.below_minimum",
+                    Severity.ERROR,
+                    f"{name} has {len(below)} value(s) below the contract minimum {spec.minimum}"
+                    f" (observed min {col.min()})",
+                    column=name,
+                    minimum=spec.minimum,
+                    observed_min=float(col.min()),
+                    n_violations=int(len(below)),
+                )
         if spec.maximum is not None:
             above = col[col > spec.maximum]
             if len(above):
-                report.add("range.above_maximum", Severity.ERROR,
-                           f"{name} has {len(above)} value(s) above the contract maximum {spec.maximum}"
-                           f" (observed max {col.max()})",
-                           column=name, maximum=spec.maximum, observed_max=float(col.max()),
-                           n_violations=int(len(above)))
+                report.add(
+                    "range.above_maximum",
+                    Severity.ERROR,
+                    f"{name} has {len(above)} value(s) above the contract maximum {spec.maximum}"
+                    f" (observed max {col.max()})",
+                    column=name,
+                    maximum=spec.maximum,
+                    observed_max=float(col.max()),
+                    n_violations=int(len(above)),
+                )
 
 
 def _category_checks(frame: pd.DataFrame, report: ValidationReport) -> None:
@@ -215,9 +252,14 @@ def _category_checks(frame: pd.DataFrame, report: ValidationReport) -> None:
         observed = set(frame[name].dropna().astype(str).unique())
         unknown = sorted(observed - allowed)
         if unknown:
-            report.add("categories.unknown_level", Severity.ERROR,
-                       f"{name} contains {len(unknown)} level(s) outside the contract: {unknown[:5]}",
-                       column=name, unknown=unknown[:20], n_unknown=len(unknown))
+            report.add(
+                "categories.unknown_level",
+                Severity.ERROR,
+                f"{name} contains {len(unknown)} level(s) outside the contract: {unknown[:5]}",
+                column=name,
+                unknown=unknown[:20],
+                n_unknown=len(unknown),
+            )
 
 
 def _duplicate_check(frame: pd.DataFrame, report: ValidationReport) -> None:
@@ -226,10 +268,14 @@ def _duplicate_check(frame: pd.DataFrame, report: ValidationReport) -> None:
     report.stats["duplicate_rows"] = n_dup
     report.stats["duplicate_rate"] = round(rate, 6)
     if rate > DUPLICATE_WARN_RATE:
-        report.add("duplicates.rate", Severity.WARNING,
-                   f"{n_dup} duplicate row(s) = {rate:.1%} of the frame, above the "
-                   f"{DUPLICATE_WARN_RATE:.0%} alert level",
-                   n_duplicates=n_dup, rate=round(rate, 6))
+        report.add(
+            "duplicates.rate",
+            Severity.WARNING,
+            f"{n_dup} duplicate row(s) = {rate:.1%} of the frame, above the "
+            f"{DUPLICATE_WARN_RATE:.0%} alert level",
+            n_duplicates=n_dup,
+            rate=round(rate, 6),
+        )
 
 
 def _target_checks(frame: pd.DataFrame, report: ValidationReport) -> None:
@@ -238,27 +284,38 @@ def _target_checks(frame: pd.DataFrame, report: ValidationReport) -> None:
     col = frame[TARGET]
     n_null = int(col.isna().sum())
     if n_null:
-        report.add("target.nulls", Severity.ERROR, f"target has {n_null} null value(s)", n_null=n_null)
+        report.add(
+            "target.nulls", Severity.ERROR, f"target has {n_null} null value(s)", n_null=n_null
+        )
 
     observed = set(col.dropna().astype(str).unique())
     unknown = sorted(observed - set(TARGET_CLASSES))
     if unknown:
-        report.add("target.unknown_class", Severity.ERROR,
-                   f"target contains value(s) outside {list(TARGET_CLASSES)}: {unknown[:5]}",
-                   unknown=unknown[:20])
+        report.add(
+            "target.unknown_class",
+            Severity.ERROR,
+            f"target contains value(s) outside {list(TARGET_CLASSES)}: {unknown[:5]}",
+            unknown=unknown[:20],
+        )
 
     present = observed & set(TARGET_CLASSES)
     if len(present) < 2:
-        report.add("target.single_class", Severity.ERROR,
-                   f"target has only {sorted(present)}; a classifier cannot be fitted or scored",
-                   present=sorted(present))
+        report.add(
+            "target.single_class",
+            Severity.ERROR,
+            f"target has only {sorted(present)}; a classifier cannot be fitted or scored",
+            present=sorted(present),
+        )
     else:
         rate = float((col == TARGET_CLASSES[1]).mean())
         report.stats["positive_rate"] = round(rate, 6)
         if not 0.05 <= rate <= 0.60:
-            report.add("target.prevalence", Severity.WARNING,
-                       f"positive rate {rate:.3f} is outside the expected 0.05-0.60 band",
-                       positive_rate=round(rate, 6))
+            report.add(
+                "target.prevalence",
+                Severity.WARNING,
+                f"positive rate {rate:.3f} is outside the expected 0.05-0.60 band",
+                positive_rate=round(rate, 6),
+            )
 
 
 def _leakage_check(frame: pd.DataFrame, report: ValidationReport) -> None:
@@ -298,10 +355,14 @@ def _leakage_check(frame: pd.DataFrame, report: ValidationReport) -> None:
     report.stats["univariate_auc"] = scores
     leaks = {k: v for k, v in scores.items() if v >= LEAKAGE_AUC_THRESHOLD}
     if leaks:
-        report.add("leakage.univariate_auc", Severity.ERROR,
-                   f"feature(s) predict the target almost perfectly and are treated as leakage: "
-                   f"{sorted(leaks)}",
-                   threshold=LEAKAGE_AUC_THRESHOLD, offenders=leaks)
+        report.add(
+            "leakage.univariate_auc",
+            Severity.ERROR,
+            f"feature(s) predict the target almost perfectly and are treated as leakage: "
+            f"{sorted(leaks)}",
+            threshold=LEAKAGE_AUC_THRESHOLD,
+            offenders=leaks,
+        )
 
 
 def validate_frame(

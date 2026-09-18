@@ -218,8 +218,16 @@ def _discrete_proportions(
 
     ref_collapsed, cur_collapsed = collapse(reference), collapse(current)
     levels = sorted(keep)
-    ref_p = ref_collapsed.value_counts(normalize=False).reindex(levels, fill_value=0).to_numpy(dtype=float)
-    cur_p = cur_collapsed.value_counts(normalize=False).reindex(levels, fill_value=0).to_numpy(dtype=float)
+    ref_p = (
+        ref_collapsed.value_counts(normalize=False)
+        .reindex(levels, fill_value=0)
+        .to_numpy(dtype=float)
+    )
+    cur_p = (
+        cur_collapsed.value_counts(normalize=False)
+        .reindex(levels, fill_value=0)
+        .to_numpy(dtype=float)
+    )
     # One extra cell for everything that was pooled, on each side.
     ref_p = np.append(ref_p, ref_collapsed.isna().sum())
     cur_p = np.append(cur_p, cur_collapsed.isna().sum())
@@ -255,8 +263,12 @@ def population_stability_index(
 
     if categorical:
         levels = sorted(set(ref.astype(str)) | set(cur.astype(str)))
-        ref_p = ref.astype(str).value_counts(normalize=True).reindex(levels, fill_value=0.0).to_numpy()
-        cur_p = cur.astype(str).value_counts(normalize=True).reindex(levels, fill_value=0.0).to_numpy()
+        ref_p = (
+            ref.astype(str).value_counts(normalize=True).reindex(levels, fill_value=0.0).to_numpy()
+        )
+        cur_p = (
+            cur.astype(str).value_counts(normalize=True).reindex(levels, fill_value=0.0).to_numpy()
+        )
     elif _is_effectively_discrete(ref.to_numpy(dtype=float), n_bins):
         # Heavy ties: quantile edges collapse and become unstable under resampling of
         # the reference, so compare the value distributions directly instead.
@@ -285,15 +297,31 @@ def _severity(psi: float, warn: float, alert: float) -> str:
 
 
 def numeric_feature_drift(
-    name: str, reference: pd.Series, current: pd.Series, *,
-    psi_warn: float, psi_alert: float, ks_alpha: float, n_bins: int,
+    name: str,
+    reference: pd.Series,
+    current: pd.Series,
+    *,
+    psi_warn: float,
+    psi_alert: float,
+    ks_alpha: float,
+    n_bins: int,
 ) -> FeatureDrift:
     ref = pd.to_numeric(reference, errors="coerce").dropna()
     cur = pd.to_numeric(current, errors="coerce").dropna()
     if ref.empty or cur.empty:
-        return FeatureDrift(name, "numeric", float("inf"), float("nan"), float("nan"),
-                            "ks_2samp", True, "alert", reference_n=len(ref), current_n=len(cur),
-                            note="one side had no usable numeric values")
+        return FeatureDrift(
+            name,
+            "numeric",
+            float("inf"),
+            float("nan"),
+            float("nan"),
+            "ks_2samp",
+            True,
+            "alert",
+            reference_n=len(ref),
+            current_n=len(cur),
+            note="one side had no usable numeric values",
+        )
 
     ks = stats.ks_2samp(ref.to_numpy(), cur.to_numpy(), method="asymp")
     psi = population_stability_index(ref, cur, n_bins=n_bins, categorical=False)
@@ -304,26 +332,47 @@ def numeric_feature_drift(
     # measured no-drift false-positive rate low, which DRIFT_DETECTION.md reports.
     drifted = bool(psi >= psi_alert and ks.pvalue < ks_alpha)
     return FeatureDrift(
-        feature=name, kind="numeric", psi=round(psi, 6),
-        statistic=round(float(ks.statistic), 6), p_value=float(ks.pvalue),
-        test="ks_2samp", drifted=drifted, severity=severity,
+        feature=name,
+        kind="numeric",
+        psi=round(psi, 6),
+        statistic=round(float(ks.statistic), 6),
+        p_value=float(ks.pvalue),
+        test="ks_2samp",
+        drifted=drifted,
+        severity=severity,
         wasserstein=round(wd, 6),
-        reference_mean=round(float(ref.mean()), 6), current_mean=round(float(cur.mean()), 6),
-        reference_n=int(len(ref)), current_n=int(len(cur)),
+        reference_mean=round(float(ref.mean()), 6),
+        current_mean=round(float(cur.mean()), 6),
+        reference_n=int(len(ref)),
+        current_n=int(len(cur)),
     )
 
 
 def categorical_feature_drift(
-    name: str, reference: pd.Series, current: pd.Series, *,
-    psi_warn: float, psi_alert: float, chi2_alpha: float,
+    name: str,
+    reference: pd.Series,
+    current: pd.Series,
+    *,
+    psi_warn: float,
+    psi_alert: float,
+    chi2_alpha: float,
 ) -> FeatureDrift:
     ref = reference.dropna().astype(str)
     cur = current.dropna().astype(str)
     if ref.empty or cur.empty:
-        return FeatureDrift(name, "categorical", float("inf"), float("nan"), float("nan"),
-                            "chi2_homogeneity", True, "alert",
-                            reference_n=len(ref), current_n=len(cur),
-                            note="one side had no usable values")
+        return FeatureDrift(
+            name,
+            "categorical",
+            float("inf"),
+            float("nan"),
+            float("nan"),
+            "chi2_homogeneity",
+            True,
+            "alert",
+            reference_n=len(ref),
+            current_n=len(cur),
+            note="one side had no usable values",
+        )
 
     levels = sorted(set(ref) | set(cur))
     ref_counts = ref.value_counts().reindex(levels, fill_value=0).to_numpy(dtype=float)
@@ -354,10 +403,17 @@ def categorical_feature_drift(
     severity = _severity(psi, psi_warn, psi_alert)
     drifted = bool(psi >= psi_alert and p_value < chi2_alpha)
     return FeatureDrift(
-        feature=name, kind="categorical", psi=round(psi, 6),
-        statistic=round(float(statistic), 6), p_value=float(p_value),
-        test="chi2_homogeneity", drifted=drifted, severity=severity,
-        reference_n=int(len(ref)), current_n=int(len(cur)), note=note,
+        feature=name,
+        kind="categorical",
+        psi=round(psi, 6),
+        statistic=round(float(statistic), 6),
+        p_value=float(p_value),
+        test="chi2_homogeneity",
+        drifted=drifted,
+        severity=severity,
+        reference_n=int(len(ref)),
+        current_n=int(len(cur)),
+        note=note,
     )
 
 
@@ -417,8 +473,10 @@ class DriftDetector:
     def detect(self, current: pd.DataFrame, *, scenario: str | None = None) -> DriftReport:
         start = time.perf_counter()
         report = DriftReport(
-            reference_rows=len(self.reference), current_rows=len(current),
-            scenario=scenario, thresholds=self.thresholds,
+            reference_rows=len(self.reference),
+            current_rows=len(current),
+            scenario=scenario,
+            thresholds=self.thresholds,
         )
 
         for name in self.features:
@@ -427,33 +485,50 @@ class DriftDetector:
             # or, worse, silently return "no drift".
             if name not in current.columns:
                 report.schema_failures.append(
-                    {"feature": name, "failure": "missing_column",
-                     "message": f"{name} is absent from the current window"}
+                    {
+                        "feature": name,
+                        "failure": "missing_column",
+                        "message": f"{name} is absent from the current window",
+                    }
                 )
                 continue
             column = current[name]
             null_rate = float(column.isna().mean()) if len(column) else 1.0
             if null_rate > 0.0:
                 report.schema_failures.append(
-                    {"feature": name, "failure": "null_values",
-                     "null_rate": round(null_rate, 6),
-                     "message": f"{name} is {null_rate:.1%} null; the contract permits none"}
+                    {
+                        "feature": name,
+                        "failure": "null_values",
+                        "null_rate": round(null_rate, 6),
+                        "message": f"{name} is {null_rate:.1%} null; the contract permits none",
+                    }
                 )
                 if null_rate == 1.0:
                     continue
 
             if name in NUMERIC_FEATURES:
-                report.features.append(numeric_feature_drift(
-                    name, self.reference[name], column,
-                    psi_warn=self.psi_warn, psi_alert=self.psi_alert,
-                    ks_alpha=self.ks_alpha, n_bins=self.n_bins,
-                ))
+                report.features.append(
+                    numeric_feature_drift(
+                        name,
+                        self.reference[name],
+                        column,
+                        psi_warn=self.psi_warn,
+                        psi_alert=self.psi_alert,
+                        ks_alpha=self.ks_alpha,
+                        n_bins=self.n_bins,
+                    )
+                )
             elif name in CATEGORICAL_FEATURES:
-                report.features.append(categorical_feature_drift(
-                    name, self.reference[name], column,
-                    psi_warn=self.psi_warn, psi_alert=self.psi_alert,
-                    chi2_alpha=self.chi2_alpha,
-                ))
+                report.features.append(
+                    categorical_feature_drift(
+                        name,
+                        self.reference[name],
+                        column,
+                        psi_warn=self.psi_warn,
+                        psi_alert=self.psi_alert,
+                        chi2_alpha=self.chi2_alpha,
+                    )
+                )
 
         report.elapsed_seconds = time.perf_counter() - start
         return report
@@ -500,9 +575,16 @@ def prediction_drift(
     ref = pd.Series(reference_scores).dropna().to_numpy(dtype=float)
     cur = pd.Series(current_scores).dropna().to_numpy(dtype=float)
     if len(ref) == 0 or len(cur) == 0:
-        return {"psi": float("inf"), "p_value": float("nan"), "drifted": True,
-                "reference_mean": None, "current_mean": None,
-                "mean_shift": None, "shape_drift": True, "level_drift": True}
+        return {
+            "psi": float("inf"),
+            "p_value": float("nan"),
+            "drifted": True,
+            "reference_mean": None,
+            "current_mean": None,
+            "mean_shift": None,
+            "shape_drift": True,
+            "level_drift": True,
+        }
 
     ks = stats.ks_2samp(ref, cur, method="asymp")
     psi = population_stability_index(ref, cur, n_bins=n_bins)

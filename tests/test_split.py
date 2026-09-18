@@ -21,7 +21,10 @@ def test_no_source_record_appears_in_two_splits(full_split):
     """The guarantee that actually matters: one record, one split."""
     report = overlap_report(full_split)
     assert report["index_overlap_train_validation"] == 0
-    assert report["index_coverage_train_validation"] == full_split.sizes["train"] + full_split.sizes["validation"]
+    assert (
+        report["index_coverage_train_validation"]
+        == full_split.sizes["train"] + full_split.sizes["validation"]
+    )
 
 
 def test_test_split_comes_from_a_physically_separate_file(full_split, raw_data):
@@ -64,15 +67,25 @@ def test_invalid_validation_fraction_is_rejected(raw_data, config, fraction):
 
 def test_split_id_changes_when_contents_change(full_split):
     mutated = make_split(
-        full_split.train.head(100), full_split.test, full_split.dataset_version,
-        seed=full_split.seed, validation_fraction=0.2,
+        full_split.train.head(100),
+        full_split.test,
+        full_split.dataset_version,
+        seed=full_split.seed,
+        validation_fraction=0.2,
     )
     assert mutated.split_id != full_split.split_id
 
 
 def test_manifest_records_everything_needed_to_reproduce(full_split):
     manifest = full_split.to_manifest()
-    for key in ("dataset_version", "split_id", "seed", "validation_fraction", "sizes", "positive_rate"):
+    for key in (
+        "dataset_version",
+        "split_id",
+        "seed",
+        "validation_fraction",
+        "sizes",
+        "positive_rate",
+    ):
         assert key in manifest
     assert manifest["seed"] == full_split.seed
 
