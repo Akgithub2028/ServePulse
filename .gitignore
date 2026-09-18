@@ -27,3 +27,16 @@ results/**/*.log
 
 # macOS
 .DS_Store
+
+# Frontend (Vite/React). Dependencies and build output are reproducible from the lock
+# file with `npm ci`, so they are not committed; package-lock.json IS committed so the
+# build is deterministic and CI can cache it by lock hash.
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+frontend/.env.local
+
+# Playwright: reports and traces are artefacts of a run, not sources.
+frontend/playwright-report/
+frontend/test-results/
+frontend/.playwright/

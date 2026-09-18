@@ -1,0 +1,80 @@
+/**
+ * Design tokens.
+ *
+ * Direction: obsidian/graphite control plane — near-black surfaces, hairline borders,
+ * restrained luminous accents, and monospace numerals so figures line up and read as
+ * measurements rather than prose. Colour carries meaning only (state, severity); it is
+ * never decoration, because in an operations surface a coloured thing must mean something.
+ */
+
+:root {
+  /* Surfaces: each step is a hair lighter than the last, so hierarchy reads without
+     borders everywhere. */
+  --bg-void: #05070a;
+  --bg-base: #080b10;
+  --bg-raised: #0c1016;
+  --bg-panel: rgba(255, 255, 255, 0.018);
+  --bg-panel-hover: rgba(255, 255, 255, 0.035);
+  --bg-inset: rgba(0, 0, 0, 0.35);
+
+  /* Hairlines. */
+  --line-faint: rgba(255, 255, 255, 0.05);
+  --line: rgba(255, 255, 255, 0.085);
+  --line-strong: rgba(255, 255, 255, 0.14);
+
+  /* Text. */
+  --text-primary: #e8edf4;
+  --text-secondary: #9aa7b8;
+  --text-muted: #66748a;
+  --text-faint: #47536a;
+
+  /* Semantic accents. */
+  --accent: #5eead4;
+  --accent-dim: rgba(94, 234, 212, 0.14);
+  --accent-glow: rgba(94, 234, 212, 0.35);
+  --info: #7dd3fc;
+  --info-dim: rgba(125, 211, 252, 0.14);
+  --ok: #4ade80;
+  --ok-dim: rgba(74, 222, 128, 0.14);
+  --warn: #fbbf24;
+  --warn-dim: rgba(251, 191, 36, 0.14);
+  --danger: #f87171;
+  --danger-dim: rgba(248, 113, 113, 0.14);
+  --violet: #c4b5fd;
+  --violet-dim: rgba(196, 181, 253, 0.14);
+
+  /* Type. System stacks only: no webfont fetch, so the console renders identically on a
+     cold, offline or preview-only load. */
+  --font-sans:
+    ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial,
+    sans-serif;
+  --font-mono:
+    ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, "Liberation Mono", monospace;
+
+  --text-xs: 0.6875rem;
+  --text-sm: 0.78125rem;
+  --text-base: 0.875rem;
+  --text-lg: 1rem;
+  --text-xl: 1.25rem;
+  --text-2xl: 1.6rem;
+  --text-3xl: 2.1rem;
+
+  /* Spacing scale. */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+
+  --radius-sm: 5px;
+  --radius: 9px;
+  --radius-lg: 14px;
+
+  --shadow-panel: 0 1px 0 rgba(255, 255, 255, 0.03) inset, 0 12px 32px rgba(0, 0, 0, 0.45);
+  --transition-fast: 120ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  --transition: 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
+
+  --sidebar-width: 232px;
+}
