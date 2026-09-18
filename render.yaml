@@ -1,0 +1,103 @@
+# Render Blueprint — ML serving & monitoring platform.
+#
+# Topology:
+#   GitHub repo -> GitHub Actions CI (all checks must pass) -> Render
+#     -> backend  : Docker web service  (FastAPI + MLflow/SQLite on a persistent disk)
+#     -> frontend : static site         (React control plane, calls the backend over HTTPS)
+#
+# autoDeployTrigger: checksPass on both services means Render deploys only after the
+# repository's CI checks pass on the linked branch — CI is the release gate, and there
+# is no commit-only path that bypasses it.
+#
+# Architectural constraint (documented, not hidden): the platform's storage is
+# SQLite/filesystem-backed, so the backend is a SINGLE-INSTANCE service with an attached
+# persistent disk. Render does not support scaling a service with a disk, and disables
+# zero-downtime deploys for disk-backed services. This deployment is therefore a
+# production-STYLE single-instance platform, not a horizontally-scalable or
+# zero-downtime one. See DEPLOYMENT.md.
+
+services:
+  # ---------------------------------------------------------------- backend API
+  - type: web
+    name: mlserve-backend
+    runtime: docker
+    region: oregon
+    plan: starter # a persistent disk requires a paid instance type
+    dockerfilePath: ./docker/Dockerfile
+    dockerContext: .
+    # Readiness, not liveness: /ready is 503 until a model is actually loadable, so
+    # Render routes traffic only once the service can genuinely answer /predict. The
+    # app intentionally treats "alive but no model" as degraded (200 on /health), and
+    # that distinction is preserved by gating the deploy on /ready.
+    healthCheckPath: /ready
+    # Give uvicorn time to drain in-flight requests on SIGTERM (entrypoint execs it as
+    # PID 1, so shutdown is graceful rather than a hard kill).
+    maxShutdownDelaySeconds: 30
+    # Single instance: the SQLite tracking store, model registry and prediction log are
+    # filesystem-backed and not safe for concurrent multi-instance writers.
+    numInstances: 1
+    # Persistent disk for ALL filesystem-backed state. Render's default filesystem is
+    # ephemeral; without this the MLflow registry, artefacts and prediction log would
+    # vanish on every restart/redeploy. MLSERVE_DATA_ROOT points the existing config at
+    # this mount (see src/mlserve/config.py::_apply_env_overrides).
+    disk:
+      name: mlserve-data
+      mountPath: /var/data
+      sizeGB: 1
+    # One-time-per-deploy initialization. Idempotent: if a production model already
+    # exists it does nothing (never re-trains, never moves the alias); otherwise it
+    # reuses scripts/fetch_data.py + scripts/train.py to create the first model.
+    preDeployCommand: python scripts/deploy/init_production.py
+    envVars:
+      # Relocate every piece of filesystem state onto the persistent disk.
+      - key: MLSERVE_DATA_ROOT
+        value: /var/data
+      # Containers must bind all interfaces; Render injects $PORT (read by the
+      # entrypoint, not by config, so a stray PORT can't change local behaviour).
+      - key: MLSERVE_HOST
+        value: 0.0.0.0
+      # Serve through the existing registry architecture (aliases, promotion, rollback).
+      - key: MLSERVE_MODEL_SOURCE
+        value: registry
+      - key: MLSERVE_MODEL_ALIAS
+        value: production
+      # Intra-op threads stay pinned to 1: the measured 2.6-5.1x throughput finding.
+      - key: OMP_NUM_THREADS
+        value: "1"
+      - key: OPENBLAS_NUM_THREADS
+        value: "1"
+      - key: MKL_NUM_THREADS
+        value: "1"
+      # Admin secret guarding /admin/reload. Render generates a strong random value;
+      # it is never committed, never logged, and never exposed to the frontend. An
+      # operator reads it from the Render dashboard to call /admin/reload.
+      - key: MLSERVE_ADMIN_TOKEN
+        generateValue: true
+      # CORS allow-list: the deployed frontend origin. NOT a wildcard. If Render
+      # assigns the static site a different URL (name taken / suffix added), update
+      # this to match — see DEPLOYMENT.md.
+      - key: MLSERVE_CORS_ORIGINS
+        value: https://mlserve-frontend.onrender.com
+    autoDeployTrigger: checksPass
+
+  # ------------------------------------------------------------- frontend site
+  - type: web
+    name: mlserve-frontend
+    runtime: static
+    region: oregon
+    plan: free
+    # Build the Vite/React bundle; the backend URL is injected at build time from the
+    # environment (never hardcoded in source).
+    buildCommand: cd frontend && npm ci && npm run build
+    staticPublishPath: ./frontend/dist
+    envVars:
+      # Public, non-secret: the backend base URL the static client calls over HTTPS.
+      - key: VITE_API_BASE_URL
+        value: https://mlserve-backend.onrender.com
+    # Single-page-app routing: unknown paths fall back to index.html so client-side
+    # routes resolve on refresh/deep-link.
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    autoDeployTrigger: checksPass

@@ -1,0 +1,22 @@
+# Deployment image dependencies: the runtime serving set PLUS exactly what is
+# needed to bootstrap and serve through the existing MLflow registry on Render.
+#
+# Why this file exists (and why not just requirements.txt or requirements-dev.txt):
+#   * requirements.txt is the slim serving set the benchmarks/reproducibility
+#     evidence is pinned against -- it deliberately excludes MLflow because the
+#     original container path served a joblib bundle from a mounted volume.
+#   * The Render deployment instead keeps the platform's real registry
+#     architecture (aliases, promotion, rollback, /admin/reload) and runs the
+#     first-deploy bootstrap (fetch -> train -> register) IN the container. Both
+#     need MLflow, and MLflow's SQLite/artifact handling wants pyarrow.
+#   * requirements-dev.txt would also drag in pytest/ruff/black/matplotlib/httpx,
+#     which the deployed image never uses. This file adds only the two packages
+#     the deployment actually imports, so the image stays as small as it can be
+#     while still being able to reproduce the existing training/registry path.
+#
+# Versions match requirements-dev.txt / requirements-lock.txt exactly, so the
+# container trains and registers with the same MLflow the evidence was produced
+# with. This is a deployment artefact, not a second source of business config.
+-r requirements.txt
+mlflow==3.6.0
+pyarrow==22.0.0

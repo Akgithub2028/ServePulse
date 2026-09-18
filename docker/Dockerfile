@@ -32,10 +32,15 @@ RUN apt-get update \
 
 # Requirements are copied before the source so that a code change does not invalidate
 # the dependency layer, which is by far the slowest part of the build.
-COPY requirements.txt ./
+#
+# The image installs requirements-deploy.txt = the slim serving set PLUS MLflow and
+# pyarrow, because this container keeps the platform's real registry architecture and
+# runs the first-deploy bootstrap (scripts/deploy/init_production.py) in place. Both
+# import MLflow. requirements.txt alone cannot serve from the registry or train.
+COPY requirements.txt requirements-deploy.txt ./
 RUN python -m venv /opt/venv \
  && /opt/venv/bin/pip install --no-cache-dir --upgrade pip \
- && /opt/venv/bin/pip install --no-cache-dir -r requirements.txt
+ && /opt/venv/bin/pip install --no-cache-dir -r requirements-deploy.txt
 
 COPY pyproject.toml README.md ./
 COPY src ./src
@@ -65,6 +70,10 @@ COPY --from=builder /opt/venv /opt/venv
 WORKDIR /app
 COPY configs ./configs
 COPY src ./src
+# scripts/ ships so the first-deploy bootstrap (scripts/deploy/init_production.py,
+# run via the Render preDeployCommand) can reuse the existing fetch/train/register
+# machinery in place. The other scripts are inert in the container.
+COPY scripts ./scripts
 COPY docker/entrypoint.sh /usr/local/bin/entrypoint.sh
 
 # The image serves a model bundle mounted at /app/artifacts/current. The model is
