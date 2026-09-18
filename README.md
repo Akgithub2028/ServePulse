@@ -250,33 +250,25 @@ Documentation: [DEPLOYMENT.md](DEPLOYMENT.md) · [FRONTEND.md](FRONTEND.md) ·
 
 Stated plainly, because the point of this project is that its claims are checkable:
 
-1. **Not production-scale.** Locally there is no authentication: `/admin/reload` swaps the
-   served model unauthenticated. The deployed configuration is different — the endpoint
-   requires `MLSERVE_ADMIN_TOKEN` and returns `401` without it — but that is one shared
-   secret, not an identity model, and it does not make this a multi-tenant service.
-2. **Single node.** SQLite for tracking, registry and prediction logging — which is why
-   the deployment runs one instance with a persistent disk, and why it claims neither
-   horizontal scaling nor zero-downtime releases.
-3. **The container is verified, but on a CI runner rather than a developer machine.** No
-   container runtime was available during development, which is why the image was initially
-   authored and statically reviewed only. The CI `docker` job now builds it, runs the
-   first-deploy bootstrap, boots the service, verifies the API, checks the process is
-   non-root and proves persistence across a restart — and those measurements (build time,
-   image size, start-up, shutdown behaviour) are recorded in
-   [BENCHMARKS.md](BENCHMARKS.md#docker--measured-in-ci) with their provenance.
-4. **CI is the release gate.** It runs on every push and pull request and every step below
-   is reproduced in the workflow; the original development predates that, which is why
-   [CI_CD.md](CI_CD.md) keeps a historical note about what had not yet run.
-5. **Retraining is explicitly triggered**, not scheduled. There is no production
-   trigger.
-6. **Prometheus metrics are per-process**; multi-worker exposition is not configured.
-7. **Drift results are synthetic shifts on one dataset.** The detection rates do not
-   generalise to other data or to real-world drift.
-8. **Reproducibility is verified on one machine** across clean virtual environments —
-   not across operating systems or CPU architectures.
-9. **No fairness assessment**, despite strong demographic associations in the data.
-10. **Benchmarks are single-machine, single-worker, loopback.** No network latency, no
-    load balancer, no TLS.
+1. **Single instance, by construction.** SQLite plus filesystem storage is not multi-writer
+   safe, so the deployment runs one instance with a persistent disk. No horizontal scaling is
+   claimed.
+2. **No zero-downtime releases.** Render disables zero-downtime deploys for services with an
+   attached disk. A restart is a brief outage. This is documented in
+   [DEPLOYMENT.md](DEPLOYMENT.md), not hidden.
+3. **No historical telemetry.** The store aggregates over a rolling window and the Prometheus
+   counters are cumulative; there is no per-request history, so no trend chart exists and the
+   console does not draw one.
+4. **One shared admin secret, not an identity model.** The admin guard is a deployment control,
+   not authentication of users. It does not make the service multi-tenant.
+5. **Advisories in the deployment dependency closure.** MLflow 3.6.0 and pyarrow 22.0.0 carry
+   known advisories; the exposure analysis and the remediation path (MLflow ≥ 3.15.0, as a
+   separate tested change) are recorded in `scripts/deploy/audit_baseline.txt`.
+6. **Retraining is operator-invoked.** There is no scheduler, no queue and no background job —
+   by design, and documented.
+7. **Model behaviour limits are unchanged**: drift detection sees input-distribution drift, not
+   concept drift; no fairness assessment despite strong demographic associations in the data;
+   benchmarks remain single-machine, single-worker, loopback.
 
 ---
 
