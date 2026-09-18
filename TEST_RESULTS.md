@@ -91,3 +91,32 @@ that keeps the documentation honest if the code changes:
   tie at exactly 40. — `test_drift.py::test_psi_on_a_tied_feature_is_stable_across_reference_subsamples`
 - A failed model reload must leave the previous model serving. —
   `test_failure_injection.py::test_a_failed_reload_keeps_the_previous_model`
+
+---
+
+## Suites added by the deployment work
+
+The figures above record the original suite (418 tests) and are unchanged. The deployment
+work added two more suites, both executed locally with their results below:
+
+| Suite | Tests | Covers |
+|---|---|---|
+| `tests/test_deployment_security.py` | 16 | Environment-driven configuration (`MLSERVE_DATA_ROOT` relocation, CORS allow-list parsing, admin-token injection), the admin-token guard on `/admin/reload` (open when unset, header and bearer forms when set, structured `401` with no token echoed, no reload attempted on denial), that reads stay available regardless, and that the overrides are inert when the variables are absent |
+| `tests/test_deploy_tooling.py` | 33 | That the deployment gates actually fail when they should: a wildcard CORS policy, a `/health` readiness gate, a multi-instance backend, a commit-triggered deploy, a missing disk, a `MLSERVE_DATA_ROOT` that does not match the mount, a hardcoded admin token, a missing SPA rewrite and a fingerprint mismatch are each rejected — plus one assertion per secret pattern that it matches its canonical sample, so the scanner cannot rot into a no-op |
+
+Total backend suite: **434 tests**. Run:
+
+```bash
+python -m pytest -q
+```
+
+The frontend adds **46 browser tests** (23 scenarios across desktop and mobile projects)
+against the production bundle:
+
+```bash
+cd frontend && npm run test:e2e
+```
+
+CI additionally runs the deployment gates themselves — the Blueprint validator (structural
+invariants plus Render's official JSON schema), the secret scanner, the training-fingerprint
+comparison against the recorded baseline, and the container end-to-end job — on every push.

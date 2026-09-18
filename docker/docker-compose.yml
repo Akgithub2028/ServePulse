@@ -1,7 +1,14 @@
 # Local composition: the serving API plus an MLflow tracking/registry server.
 #
-# NOT RUN OR MEASURED. No container runtime was available during development, so this
-# file is reviewed but untested. See docker/Dockerfile for the same caveat.
+# Historical note, kept because it is the reason the CI job exists: no container runtime was
+# available during development, so this file was written and reviewed but never executed.
+# The `docker` job in .github/workflows/ci.yml now builds the API image, runs the first-deploy
+# bootstrap, boots the service, verifies the API, checks the process is non-root and proves
+# persistence across a restart -- but it exercises the API service alone, from an empty
+# volume, exactly as the deployment does. The two-service composition here (with the MLflow
+# server) is therefore still reviewed rather than executed; treat it as a convenience for
+# local inspection, not as a verified path. The deployed topology does not use it:
+# render.yaml runs the API with MLflow embedded in-process against a SQLite store.
 
 name: mlserve
 
