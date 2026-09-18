@@ -84,8 +84,9 @@ services:
   - type: web
     name: mlserve-frontend
     runtime: static
-    region: oregon
-    plan: free
+    # NOTE: static sites intentionally declare NO `plan` and NO `region` — Render serves
+    # them free of charge and region-agnostically, and the official Blueprint schema
+    # rejects both keys on a static service (caught by scripts/deploy/validate_blueprint.py).
     # Build the Vite/React bundle; the backend URL is injected at build time from the
     # environment (never hardcoded in source).
     buildCommand: cd frontend && npm ci && npm run build
