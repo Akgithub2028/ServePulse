@@ -30,6 +30,21 @@ import yaml
 ROOT = Path(__file__).resolve().parents[1]
 
 
+#: A JWT is only recognisable when its three segments are joined, so the fixture stores the
+#: segments separately and joins them at test time.
+_JWT_FRAGMENTS = (
+    "eyJhbGciOiJIUzI1NiJ9",
+    "eyJzdWIiOiIxMjM0NTY3ODkwIn0",
+    "dozjgNryP4J3jVmNHl0w5N_XgL0n3I9PlFUP0THsR8U",
+)
+
+# NOTE: every credential sample below is assembled from fragments on purpose. The repository
+# scanner treats a literal secret-shaped string anywhere in a tracked file -- including in a
+# test that documents the patterns -- as a finding, which is the behaviour we want. Keeping the
+# fixtures non-literal is what lets `test_committed_repository_is_clean` be a real assertion
+# without teaching the scanner to look the other way.
+
+
 def _load(name: str, relpath: str):
     spec = importlib.util.spec_from_file_location(name, ROOT / relpath)
     assert spec and spec.loader
@@ -161,15 +176,12 @@ def test_official_render_schema_rejects_unsupported_static_site_fields(blueprint
     [
         ("GitHub personal access token", "token = 'ghp_" + "A1b2C3d4E5f6G7h8I9j0K1l2M3n4O5p6Q7r8'"),
         ("GitHub fine-grained PAT", "github_pat_" + "11ABCDEFG0aBcDeFgHiJkL_1234567890"),
-        ("AWS access key id", "AKIAIOSFODNN7EXAMPLE"),
-        ("Private key block", "-----BEGIN RSA PRIVATE KEY-----"),
-        ("Slack token", "xoxb-123456789012-abcdefghijkl"),
+        ("AWS access key id", "AKIA" + "IOSFODNN7EXAMPLE"),
+        ("Private key block", "-----BEGIN " + "RSA PRIVATE KEY-----"),
+        ("Slack token", "xoxb-" + "123456789012-abcdefghijkl"),
         ("Google API key", "AIza" + "SyD1234567890abcdefghijklmnopqrstuv"),
         ("Stripe live secret", "sk_live_" + "abcdefghijklmnopqrstuvwx"),
-        (
-            "JSON Web Token",
-            "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dozjgNryP4J3jVmNHl0w5N_XgL0n3I9PlFUP0THsR8U",
-        ),
+        ("JSON Web Token", ".".join(_JWT_FRAGMENTS)),
     ],
 )
 def test_every_pattern_matches_its_canonical_sample(secret_tool, label, sample):
@@ -178,7 +190,7 @@ def test_every_pattern_matches_its_canonical_sample(secret_tool, label, sample):
 
 
 def test_assignment_shaped_secret_is_detected(secret_tool):
-    line = 'api_key = "s3cr3t-v4lue-that-is-long"'
+    line = 'api_key = "' + "s3cr3t-v4lue-that-is-long" + '"'
     assert secret_tool.SECRET_ASSIGNMENT.search(line) is not None
 
 
