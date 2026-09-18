@@ -10,7 +10,7 @@ development.
 | Job | Authored | Verified locally | Run on GitHub |
 |---|---|---|---|
 | `lint` (ruff + black) | ✅ | ✅ | ❌ |
-| `test` (Python 3.11 + 3.13 matrix) | ✅ | ✅ on 3.13 only | ❌ |
+| `test` (Python 3.12 + 3.13 matrix) | ✅ | ✅ on 3.13 only | ❌ |
 | `pipeline` (train → smoke → drift) | ✅ | ✅ | ❌ |
 | `docker` (build + start + probe) | ✅ | ❌ **no runtime available** | ❌ |
 
@@ -24,9 +24,14 @@ paid infrastructure.
 
 **`lint`** — `ruff check` and `black --check` over `src`, `tests`, `scripts`.
 
-**`test`** — matrix over Python **3.11 and 3.13**. 3.11 is the floor declared in
+**`test`** — matrix over Python **3.12 and 3.13**. 3.12 is the floor declared in
 `pyproject.toml`; testing it is what makes `requires-python` a claim rather than a
-guess. Steps: install pinned dependencies, restore the dataset from cache, verify the
+guess. The floor was raised from 3.11 when the declared range and the pinned
+dependency stack were reconciled: `numpy==2.5.3` (and the rest of the pin set)
+ships cp312+ wheels only, so "supports 3.11" was never true of the pinned
+environment. Verified by a `pip download --python-version 311 --only-binary=:all:`
+resolution probe: no matching distribution for numpy 2.5.3 on cp311; the full
+runtime and dev requirement sets resolve cleanly on cp312 and cp313. Steps: install pinned dependencies, restore the dataset from cache, verify the
 pinned checksums, run the data-validation tests separately (so a data-contract failure
 is legible in the job list), then the full suite with a JUnit report uploaded as an
 artefact.

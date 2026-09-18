@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "mlserve"
 version = "0.1.0"
 description = "Production-style ML serving and monitoring platform (UCI Adult income classification)"
-requires-python = ">=3.11"
+requires-python = ">=3.12"
 dependencies = [
     "numpy>=1.26",
     "pandas>=2.2",
@@ -31,11 +31,11 @@ where = ["src"]
 
 [tool.black]
 line-length = 100
-target-version = ["py311"]
+target-version = ["py312"]
 
 [tool.ruff]
 line-length = 100
-target-version = "py311"
+target-version = "py312"
 exclude = [".venv", "data", "artifacts", "results", "mlruns"]
 
 [tool.ruff.lint]

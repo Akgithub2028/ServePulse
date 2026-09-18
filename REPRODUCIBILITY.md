@@ -128,6 +128,6 @@ work.
    that into a loud failure rather than a silent one.
 2. **Library versions drift.** Pinned in three files; CI installs from the pins.
 3. **Platform differences are untested.** macOS arm64 only. CI would test Linux x86 on
-   Python 3.11 and 3.13, but has not run.
+   Python 3.12 and 3.13, but has not run.
 4. **BLAS threading affects timing, not results.** Predictions are identical either way;
    throughput differs by up to 5.1×.

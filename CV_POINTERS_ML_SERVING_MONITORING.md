@@ -22,7 +22,7 @@ running service.
 
 | Layer | Used |
 |---|---|
-| Language | Python 3.13 (3.11 floor, both in CI) |
+| Language | Python 3.13 (3.12 floor, both in CI) |
 | Model | scikit-learn `HistGradientBoostingClassifier` + `LogisticRegression` baseline |
 | Data | pandas, numpy |
 | Validation | Custom contract-derived validator (78 tests) |
