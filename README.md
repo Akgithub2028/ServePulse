@@ -288,11 +288,3 @@ command whose script exists — and scans every document for unqualified claims 
 
 ---
 
-## Licence and attribution
-
-MIT licensed. This repository derives from the
-[ml-serving-monitoring-platform](https://github.com/Akgithub2028/GitPushTern)
-by **Aayaann Kausar** (original ML platform: data contract, training, registry, serving,
-drift detection, retraining — © 2026 Aayaann Kausar, retained per the MIT licence).
-
-Dataset: UCI Machine Learning Repository, Adult (Census Income), CC BY 4.0.
