@@ -104,9 +104,15 @@ Makes a promotion or rollback visible to the running service without a restart. 
 failed reload returns 503 and **leaves the previous model serving** — it never empties
 the service.
 
-**Unauthenticated.** A deployment would put this behind authentication or move it off
-the public listener. Recorded as a known gap in
-[SYSTEM_DESIGN.md](SYSTEM_DESIGN.md#known-gaps).
+**Authentication.** On the local platform this endpoint is unauthenticated (a known gap
+in [SYSTEM_DESIGN.md](SYSTEM_DESIGN.md#known-gaps)). In a public deployment
+`MLSERVE_ADMIN_TOKEN` is set to a non-empty secret, and the endpoint then requires it —
+supply `X-Admin-Token: <token>` or `Authorization: Bearer <token>`. A missing or wrong
+token returns **401** with the standard error envelope (`error.type = unauthorized`) and
+does **not** trigger a reload. The token comes from the platform's secret store, is never
+committed, never logged, never echoed in a response, and is never sent to the frontend —
+the browser is a read-only observer of the platform, not an admin console. The reload
+semantics (resolve alias → load replacement → swap only on success) are unchanged.
 
 ## Request validation
 
@@ -145,6 +151,7 @@ Every non-2xx response has this shape:
 |---|---|---|
 | `validation_error` | 422 | Payload violates the data contract |
 | `payload_too_large` | 413 | Batch above `serving.max_batch_size` |
+| `unauthorized` | 401 | `/admin/reload` called without a valid admin token (only when `MLSERVE_ADMIN_TOKEN` is set) |
 | `model_not_loaded` | 503 | No model available |
 | `internal_error` | 500 | Unexpected failure; logged in full, **never leaked to the caller** |
 
@@ -170,12 +177,19 @@ Logs are JSON lines:
 | `serving.model_source` | `registry` | `MLSERVE_MODEL_SOURCE` (`registry` \| `file`) |
 | `serving.model_alias` | `production` | `MLSERVE_MODEL_ALIAS` |
 | `serving.max_batch_size` | 512 | config |
-| `serving.port` | 8077 | `--port` |
+| `serving.host` | `127.0.0.1` | `MLSERVE_HOST` (containers use `0.0.0.0`) |
+| `serving.port` | 8077 | `PORT` (PaaS-injected) → `--port` |
+| `serving.cors_allow_origins` | localhost dev origins | `MLSERVE_CORS_ORIGINS` (comma-separated allow-list) |
+| `serving.admin_token` | `""` (open, local only) | `MLSERVE_ADMIN_TOKEN` (guards `/admin/reload`) |
 | intra-op threads | 1 | `--threads` |
+| filesystem state root | repo-relative | `MLSERVE_DATA_ROOT` (relocates MLflow/prediction/artefacts onto a persistent disk) |
 | config file | `configs/config.yaml` | `MLSERVE_CONFIG` |
 
 Precedence is explicit argument → environment → configuration. An invalid
-`model_source` is rejected at construction rather than at first request.
+`model_source` is rejected at construction rather than at first request. The
+environment overrides are inert unless set, so a local checkout resolves to exactly the
+committed `config.yaml` (verified by `tests/test_deployment_security.py`). See
+[DEPLOYMENT.md](DEPLOYMENT.md) for the production configuration.
 
 ## Tests
 

@@ -68,6 +68,18 @@ serving:
   # Fraction of prediction feature vectors sampled into the monitoring store.
   # 1.0 locally; a real deployment would lower this to bound write amplification.
   feature_sample_rate: 1.0
+  # Browser origins allowed to call this API (CORS allow-list). Local dev only:
+  # the Vite dev server. In production this is overridden by MLSERVE_CORS_ORIGINS
+  # with the deployed frontend origin -- never a wildcard. See DEPLOYMENT.md.
+  cors_allow_origins:
+    - http://localhost:5173
+    - http://127.0.0.1:5173
+  # Shared secret guarding POST /admin/reload. Empty by default, which keeps the
+  # local platform's existing open behaviour. In production MLSERVE_ADMIN_TOKEN
+  # sets a non-empty value and the endpoint then requires it via X-Admin-Token
+  # (or Authorization: Bearer). Never committed, never sent to the frontend,
+  # never logged. See DEPLOYMENT.md and PHASE 10 of the deployment plan.
+  admin_token: ""
 
 monitoring:
   latency_buckets_seconds: [0.001, 0.0025, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5]

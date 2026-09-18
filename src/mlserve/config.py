@@ -72,6 +72,56 @@ class Config:
         return int(self.require("project.random_seed"))
 
 
+def _apply_env_overrides(data: dict[str, Any]) -> dict[str, Any]:
+    """Overlay deployment-specific environment variables onto the parsed config.
+
+    This is the *only* place runtime environment mutates configuration, and it is
+    inert unless the variables are present. A local checkout, a test run, or CI
+    (none of which set these variables) therefore resolves to exactly the committed
+    ``config.yaml``, and the recorded ``config_digest`` is unchanged. Precedence is
+    environment > configuration file. See DEPLOYMENT.md.
+
+    Deliberately *not* handled here: ``PORT``. Render injects a generic ``PORT``
+    variable; reading it into config would let a stray ``PORT`` in a dev shell
+    silently change behaviour, so the serving entrypoint and container command
+    consume it explicitly instead (``serve.py`` / ``docker/entrypoint.sh``).
+    """
+    serving = data.setdefault("serving", {})
+
+    # Bind address. Containers must listen on 0.0.0.0; local dev stays on loopback.
+    if host := os.environ.get("MLSERVE_HOST"):
+        serving["host"] = host
+
+    # Production-only controls. Neither is ever committed; both come from the
+    # platform's secret/environment configuration.
+    if origins := os.environ.get("MLSERVE_CORS_ORIGINS"):
+        serving["cors_allow_origins"] = [o.strip() for o in origins.split(",") if o.strip()]
+    if token := os.environ.get("MLSERVE_ADMIN_TOKEN"):
+        serving["admin_token"] = token
+
+    # Persistent data root. Render's default filesystem is ephemeral; a mounted disk
+    # survives restarts and redeploys. When MLSERVE_DATA_ROOT is set, every piece of
+    # filesystem-backed state -- MLflow tracking + artefacts, prediction store, model
+    # bundle, raw data, results -- is relocated under it as an absolute path, so the
+    # deployed service reads and writes the disk instead of the container layer.
+    # The local config.yaml (relative paths under the repo) is left untouched.
+    if root := os.environ.get("MLSERVE_DATA_ROOT"):
+        base = Path(root)
+        paths = data.setdefault("paths", {})
+        paths["raw_dir"] = str(base / "raw")
+        paths["processed_dir"] = str(base / "processed")
+        paths["scenario_dir"] = str(base / "scenarios")
+        paths["artifact_dir"] = str(base / "artifacts")
+        paths["results_dir"] = str(base / "results")
+        paths["prediction_db"] = str(base / "predictions.sqlite")
+        mlflow = data.setdefault("mlflow", {})
+        # Absolute sqlite URI (four slashes) so resolve_tracking_uri keeps it verbatim.
+        mlflow["tracking_uri"] = f"sqlite:///{base / 'mlflow.db'}"
+        mlflow["artifact_location"] = f"file:{base / 'mlruns'}"
+
+    return data
+
+
 @lru_cache(maxsize=8)
 def _load(path_str: str) -> Config:
     path = Path(path_str)
@@ -79,6 +129,7 @@ def _load(path_str: str) -> Config:
         path = project_root() / path
     with open(path) as fh:
         data = yaml.safe_load(fh)
+    data = _apply_env_overrides(data)
     return Config(data, path)
 
 

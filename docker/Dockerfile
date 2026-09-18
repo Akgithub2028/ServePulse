@@ -65,6 +65,7 @@ COPY --from=builder /opt/venv /opt/venv
 WORKDIR /app
 COPY configs ./configs
 COPY src ./src
+COPY docker/entrypoint.sh /usr/local/bin/entrypoint.sh
 
 # The image serves a model bundle mounted at /app/artifacts/current. The model is
 # deliberately NOT baked in: an image that contains its weights has to be rebuilt to
@@ -73,16 +74,24 @@ COPY src ./src
 RUN mkdir -p /app/artifacts /app/data
 
 # A non-root user, created with no login shell and owning only what it needs.
-RUN useradd --create-home --shell /usr/sbin/nologin --uid 10001 mlserve \
+RUN chmod +x /usr/local/bin/entrypoint.sh \
+ && useradd --create-home --shell /usr/sbin/nologin --uid 10001 mlserve \
  && chown -R mlserve:mlserve /app
 USER mlserve
 
+# 8077 is the local default; on Render the port is injected as $PORT at runtime and
+# the entrypoint binds that instead. EXPOSE is documentation, not a restriction.
 EXPOSE 8077
 
 # Readiness, not liveness: /ready is 503 until a model is actually loaded, so the
-# orchestrator will not route traffic to an instance that cannot answer.
+# orchestrator will not route traffic to an instance that cannot answer. PORT-aware
+# so the check works locally (8077) and in a container ($PORT) with the same image.
 HEALTHCHECK --interval=15s --timeout=5s --start-period=40s --retries=3 \
-    CMD python -c "import sys,urllib.request;sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8077/ready',timeout=4).status==200 else 1)"
+    CMD python -c "import os,sys,urllib.request;p=os.environ.get('PORT','8077');sys.exit(0 if urllib.request.urlopen(f'http://127.0.0.1:{p}/ready',timeout=4).status==200 else 1)"
 
-ENTRYPOINT ["uvicorn", "mlserve.serving.main:app"]
-CMD ["--host", "0.0.0.0", "--port", "8077", "--workers", "1", "--no-access-log"]
+# The entrypoint resolves $PORT/$HOST and execs uvicorn as PID 1 for graceful
+# SIGTERM shutdown. No model state is baked in: the bundle is mounted read-only at
+# /app/artifacts/current (file source) or resolved from the registry, so promoting a
+# model never requires rebuilding this image.
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
+

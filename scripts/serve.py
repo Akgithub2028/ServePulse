@@ -66,8 +66,14 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
     )
-    parser.add_argument("--host", default=str(config.require("serving.host")))
-    parser.add_argument("--port", type=int, default=int(config.require("serving.port")))
+    parser.add_argument(
+        "--host", default=os.environ.get("MLSERVE_HOST") or str(config.require("serving.host"))
+    )
+    # Render (and most PaaS) inject the port to bind as $PORT. Honouring it here means
+    # the same entrypoint works locally (config port 8077) and in a container ($PORT),
+    # with an explicit --port still winning over both.
+    default_port = int(os.environ.get("PORT") or config.require("serving.port"))
+    parser.add_argument("--port", type=int, default=default_port)
     parser.add_argument(
         "--workers",
         type=int,

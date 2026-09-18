@@ -26,6 +26,7 @@ traceback to the caller but logging it in full).
 
 from __future__ import annotations
 
+import hmac
 import time
 import uuid
 from contextlib import asynccontextmanager
@@ -33,6 +34,7 @@ from contextlib import asynccontextmanager
 import pandas as pd
 from fastapi import APIRouter, FastAPI, Request, Response, status
 from fastapi.exceptions import RequestValidationError
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from mlserve import __version__
@@ -87,6 +89,13 @@ class ServiceState:
         self.started_at = time.time()
         self.threshold = float(config.require("evaluation.decision_threshold"))
         self.max_batch_size = int(config.require("serving.max_batch_size"))
+        # Production-only guard for /admin/reload. Empty string means "unset", which
+        # preserves the local platform's open behaviour; a non-empty value (injected
+        # via MLSERVE_ADMIN_TOKEN) requires the caller to present it. Held in memory,
+        # never logged, never returned by any endpoint.
+        self.admin_token = str(config.get("serving.admin_token", "") or "")
+        # CORS allow-list for a separately-deployed static frontend.
+        self.cors_origins = [str(o) for o in (config.get("serving.cors_allow_origins") or [])]
         self.loader = loader or ModelLoader(config)
         self.store = (
             store
@@ -327,6 +336,46 @@ def monitoring_summary(request: Request, window_seconds: float | None = None) ->
     return summary
 
 
+def _admin_auth_failure(request: Request, state: ServiceState, rid: str) -> JSONResponse:
+    """401 for a missing/incorrect admin token, recorded like any other error.
+
+    The token value itself is never logged or echoed -- only the fact that a caller
+    was denied. Uses a constant-time compare so the check does not leak the secret
+    through timing.
+    """
+    state.metrics.observe_error(request.url.path, "unauthorized")
+    state.store.log_event(
+        "admin_unauthorized",
+        request_id=rid,
+        status_code=401,
+        detail="missing or invalid admin token",
+    )
+    logger.warning("admin operation denied", extra={"endpoint": request.url.path})
+    return _error_response(
+        rid,
+        status.HTTP_401_UNAUTHORIZED,
+        "unauthorized",
+        "a valid X-Admin-Token header (or Authorization: Bearer) is required for this operation",
+    )
+
+
+def _admin_token_ok(request: Request, state: ServiceState) -> bool:
+    """True when the request carries the configured admin token.
+
+    If no token is configured (``state.admin_token`` empty) the endpoint is open,
+    exactly as on the local platform. Otherwise the caller must supply it via
+    ``X-Admin-Token`` or ``Authorization: Bearer <token>``.
+    """
+    if not state.admin_token:
+        return True
+    supplied = request.headers.get("X-Admin-Token", "")
+    if not supplied:
+        auth = request.headers.get("Authorization", "")
+        if auth.startswith("Bearer "):
+            supplied = auth[len("Bearer ") :]
+    return hmac.compare_digest(supplied, state.admin_token)
+
+
 @router.post(
     "/admin/reload",
     tags=["operations"],
@@ -335,12 +384,17 @@ def monitoring_summary(request: Request, window_seconds: float | None = None) ->
 def admin_reload(request: Request) -> JSONResponse:
     """Pick up a promotion or rollback without restarting the process.
 
-    Unauthenticated by design *for this local platform*, and called out as a known
-    limitation in SYSTEM_DESIGN.md: a deployed service would put this behind
-    authentication or move it off the public listener entirely.
+    On the local platform this is unauthenticated by design (and called out as a
+    known limitation in SYSTEM_DESIGN.md). In a public deployment ``MLSERVE_ADMIN_TOKEN``
+    is set, and this endpoint then requires that token via ``X-Admin-Token`` or
+    ``Authorization: Bearer``; a missing or wrong token is a 401. The reload
+    semantics themselves are unchanged: resolve the alias, load the replacement,
+    swap only on success, and keep the previous model serving if the load fails.
     """
     state: ServiceState = request.app.state.service
     rid = request_id_var.get() or "unknown"
+    if not _admin_token_ok(request, state):
+        return _admin_auth_failure(request, state, rid)
     model, details = state.loader.reload()
     if details["ok"]:
         state.publish_model_identity()
@@ -466,6 +520,21 @@ def create_app(
             f"the request payload violates the data contract ({len(exc.errors())} error(s))",
             details,
         )
+
+    # CORS is added last so it is the outermost layer: OPTIONS preflight is answered
+    # here without touching the request-context middleware or the routes, and every
+    # response -- including the structured error envelopes -- carries the allow-origin
+    # header so a cross-origin frontend can read it. Allow-list only, never a wildcard,
+    # and no credentials (the admin token travels in a header, not a cookie).
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=app.state.service.cors_origins,
+        allow_credentials=False,
+        allow_methods=["GET", "POST", "OPTIONS"],
+        allow_headers=["Content-Type", "X-Request-ID", "X-Admin-Token", "Authorization"],
+        expose_headers=["X-Request-ID", "X-Model-Version"],
+        max_age=600,
+    )
 
     app.include_router(router)
     return app
