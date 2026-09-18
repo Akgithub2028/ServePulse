@@ -251,12 +251,8 @@ command whose script exists — and scans every document for unqualified claims 
 ## Licence and attribution
 
 MIT licensed. This repository derives from the
-[ml-serving-monitoring-platform](https://github.com/PremPastagia/ml-serving-monitoring-platform)
-by **Prem Pastagia** (original ML platform: data contract, training, registry, serving,
-drift detection, retraining — © 2026 Prem Pastagia, retained per the MIT licence).
-
-Productionization work in this fork — CI/CD repair, Docker verification, Render
-deployment configuration, security hardening, the operations-console frontend and
-associated documentation — is © 2026 **Aayaann**.
+[ml-serving-monitoring-platform](https://github.com/Akgithub2028/GitPushTern)
+by **Aayaann Kausar** (original ML platform: data contract, training, registry, serving,
+drift detection, retraining — © 2026 Aayaann Kausar, retained per the MIT licence).
 
 Dataset: UCI Machine Learning Repository, Adult (Census Income), CC BY 4.0.
