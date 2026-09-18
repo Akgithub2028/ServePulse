@@ -8,7 +8,7 @@ Every run records, in MLflow and in a local JSON sidecar:
 
 Reproducibility is enforced, not hoped for: `training_fingerprint` hashes the fitted
 model's predictions on a fixed probe set, so "same inputs produce the same model" is a
-checkable claim rather than an assertion. `scripts/verify/verify_training_repro.py`
+checkable claim rather than an assertion. `scripts/verify/verify_clean_env_repro.py`
 compares two independent runs against that fingerprint.
 """
 

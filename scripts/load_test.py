@@ -14,7 +14,7 @@ Why it is built this way
 * **A warm-up phase is excluded from the statistics.** The first requests pay lazy
   imports and first-call allocation inside scikit-learn; folding those into p99 makes
   the tail meaningless. Cold-start is measured separately and reported on its own.
-* **The host load average is recorded with every result.** On a shared or busy machine
+* **Host CPU utilisation is recorded with every result and gates the run.** On a shared or busy machine
   latency percentiles are dominated by scheduler queueing rather than by the service,
   and a latency number without that context is not interpretable.
 

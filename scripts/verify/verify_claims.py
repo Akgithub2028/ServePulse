@@ -32,7 +32,7 @@ CV_FILE = ROOT / "CV_POINTERS_ML_SERVING_MONITORING.md"
 #: claim is only allowed when it is being explicitly qualified or denied.
 FORBIDDEN_UNLESS_QUALIFIED: dict[str, tuple[str, ...]] = {
     "production-ready": ("not production-ready", "NOT production-ready", "is not a production",
-                         "would need", "stops short of", "не"),
+                         "would need", "stops short of"),
     "production ready": ("not production ready", "NOT production ready"),
     "100% reproducible": ("not 100% reproducible", "no claim of 100%"),
     "fully reproducible": ("not fully reproducible", "within one machine",

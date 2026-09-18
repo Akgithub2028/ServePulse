@@ -135,7 +135,7 @@ def _clean(frame: pd.DataFrame) -> pd.DataFrame:
     # frequency information a probability model should see and (b) change the
     # published row counts, making the dataset version incomparable with the UCI
     # benchmark. The validator instead measures and reports the duplicate rate, and
-    # `scripts/verify/verify_no_leakage.py` measures how many held-out feature
+    # `mlserve.data.split.overlap_report` measures how many held-out feature
     # vectors also occur in train, which is what actually bounds optimism.
     return out.reset_index(drop=True)
 

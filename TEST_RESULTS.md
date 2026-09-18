@@ -18,8 +18,8 @@ OMP_NUM_THREADS=1 python -m pytest -q --durations=15 --junitxml=results/tests/ju
 | Pass rate | **100%** |
 | Wall clock | **132.5 s** (56.7 s observed on an otherwise idle machine) |
 
-Raw output: `results/tests/junit.xml`, `results/tests/pytest_full.log`,
-`results/tests/summary.json`.
+Raw output: `results/tests/junit.xml` and `results/tests/summary.json` (the full
+pytest log is gitignored as noise, not evidence).
 
 ## Environment
 

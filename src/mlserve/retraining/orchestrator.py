@@ -21,7 +21,7 @@ worse model.
 ``rejected`` tag but no alias. Discarding it would throw away the evidence for why the
 loop did nothing, and a rejection is exactly the event someone will want to inspect.
 
-This workflow is *triggered explicitly* -- by `scripts/retrain.py` or by a test. There
+This workflow is *triggered explicitly* -- by `scripts/retrain_experiment.py` or by a test. There
 is no scheduler and no automatic production trigger, and RETRAINING.md says so.
 """
 

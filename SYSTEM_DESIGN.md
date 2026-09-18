@@ -69,7 +69,7 @@ decisions an interviewer is most likely to probe.
 | Monitoring | `prometheus-client` + SQLite | statsd, Evidently dashboards | Prometheus holds aggregates; SQLite holds the individual scored vectors. Both are needed: a counter says *that* traffic changed, only retained rows say *which feature* changed. |
 | Drift | scipy KS, chi-square, PSI, Wasserstein — implemented directly | Evidently | Evidently picks the test for you by cardinality and row count, so the most important question about this project ("why this test?") would have no answer. Its defaults also change between versions, which undermines reproducibility. Cost: fewer test types. |
 | Storage | SQLite (WAL) | PostgreSQL | Must run from a clean checkout with no services to start — the property the reproducibility check depends on. Schema is plain SQL with no SQLite-only types, so moving to PostgreSQL is a connection string plus a driver. |
-| Tests | pytest | unittest | Fixtures and parametrisation; 456 tests. |
+| Tests | pytest | unittest | Fixtures and parametrisation; 418 tests. |
 | CI | GitHub Actions | none | Free tier, `ubuntu-latest`, no secrets, no paid infrastructure. |
 | Container | Docker, multi-stage | none | **Authored and statically checked, never built** — no container runtime existed on the development machine. Image size and start-up time are recorded as UNVERIFIED. |
 | Data versioning | Content hashing | DVC | DVC's value is large binary files in remote storage. The raw data here is 6 MB from a stable pinned URL; a content hash gives the same traceability with no extra tool. |

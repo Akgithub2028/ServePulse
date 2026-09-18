@@ -104,7 +104,7 @@ def main(argv: list[str] | None = None) -> int:
             registry.set_alias(PRODUCTION, ref.version)
             print(f"alias    : {PRODUCTION} -> version {ref.version} (first registration)")
         else:
-            print(f"alias    : {PRODUCTION} unchanged (use scripts/promote.py to move it)")
+            print(f"alias    : {PRODUCTION} unchanged (move it via ModelRegistry.promote)")
 
     summary = {
         "dataset_version": split.dataset_version.dataset_id,

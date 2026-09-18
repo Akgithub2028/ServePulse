@@ -146,7 +146,7 @@ class StubLoader:
 
     The API tests are about HTTP behaviour, not about MLflow, and going through the
     real registry would make every one of them depend on a trained, registered model
-    being present. `tests/test_rollback.py` and the serving-rollback verifier exercise
+    being present. `tests/test_registry.py` and `scripts/rollback_through_serving.py` exercise
     the real loader against the real registry.
     """
 

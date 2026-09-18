@@ -213,7 +213,7 @@ promotes a worse model.
 
 **Can you claim zero-downtime deployment?**
 No, and I do not. I measured 1,119 requests across two alias switches with 0 failures, and
-4 and 27 requests confirmed in flight during the switches. Getting that evidence took
+14 and 18 requests confirmed in flight during the switches. Getting that evidence took
 two attempts: a single serial prober issued a request only every few hundred
 milliseconds, so the first run reported "0 of 0 requests failed" during the promotion —
 which is not evidence of anything. The script now uses four concurrent probes and fails
