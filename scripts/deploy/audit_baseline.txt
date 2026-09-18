@@ -1,0 +1,78 @@
+# Advisory baseline for the DEPLOYMENT dependency set (requirements-deploy.txt).
+#
+# GENERATED, not hand-written: every id below was produced by running
+#     pip-audit -r requirements-deploy.txt --format json
+# and re-generating this file is the way it is maintained. Nothing here is typed by hand,
+# so the list cannot silently drift from what the scanner actually reports.
+#
+# Why a baseline exists at all
+# ----------------------------
+# requirements-deploy.txt = the serving pin set PLUS MLflow and pyarrow, because this
+# container serves through the real registry architecture (aliases, promotion, rollback)
+# and runs the first-deploy bootstrap. MLflow is pinned to the exact version the
+# platform's tracking/registry behaviour is tested against (requirements-dev.txt), so the
+# image runs the dependency set the test suite verifies rather than an untested one.
+#
+# Exposure analysis (why these are accepted for this deployment, for now)
+# ----------------------------------------------------------------------
+# * MLflow is imported IN-PROCESS. This deployment runs no MLflow server: no MLflow HTTP
+#   listener exists in the container, no MLflow port is exposed, and the tracking store is
+#   a SQLite file on the private persistent disk. A large share of MLflow advisories
+#   concern the tracking/UI server's request handling and its auth paths, neither of which
+#   is reachable from the internet here.
+# * pyarrow is pulled in by MLflow for Parquet artefact logging. The only artefacts are
+#   joblib bundles written by this project's own training run; no untrusted Parquet file
+#   is ever parsed.
+# * cryptography is used by MLflow's auth helpers, which are unused: there is no MLflow
+#   authentication in this topology, and TLS terminates at Render's edge.
+#
+# Remediation path (tracked, not forgotten)
+# -----------------------------------------
+# Upgrading MLflow to >=3.15.0 clears the large majority of the ids below. That upgrade is
+# deliberately NOT bundled into a deployment commit: it changes the library whose registry
+# semantics this platform's evidence was produced with, so it belongs in its own change
+# that re-runs the full suite and re-records any affected evidence. The ids marked
+# NO FIX are not remediable by an upgrade at all and must be revisited if this deployment
+# ever exposes an MLflow server or accepts MLflow input from untrusted callers.
+#
+# Gate semantics (enforced in .github/workflows/ci.yml)
+# -----------------------------------------------------
+# * requirements.txt (the serving pins) is audited with NO exceptions and is clean.
+# * The CI log prints every finding for the deployment set BEFORE applying this list.
+# * Any advisory id not present below fails the build. This is a tracked, reviewable risk
+#   acceptance with a re-review trigger -- not a disabled check.
+
+
+# cryptography 46.0.7
+GHSA-537c-gmf6-5ccf  # cryptography 46.0.7 -> 48.0.1
+PYSEC-2026-3552  # cryptography 46.0.7 -> 50.0.0
+PYSEC-2026-3553  # cryptography 46.0.7 -> 49.0.0
+PYSEC-2026-3554  # cryptography 46.0.7 -> 49.0.0
+
+# mlflow 3.6.0
+GHSA-gqvg-gmmx-x4hm  # mlflow 3.6.0 -> 3.15.0
+PYSEC-2026-195  # mlflow 3.6.0 -> 3.10.1
+PYSEC-2026-2219  # mlflow 3.6.0 -> 3.9.0
+PYSEC-2026-2220  # mlflow 3.6.0 -> 3.11.0rc0
+PYSEC-2026-2221  # mlflow 3.6.0 -> 3.10.0
+PYSEC-2026-2222  # mlflow 3.6.0 -> 3.11.0
+PYSEC-2026-2654  # mlflow 3.6.0 -> 3.10.0
+PYSEC-2026-2655  # mlflow 3.6.0 -> 3.11.0
+PYSEC-2026-2656  # mlflow 3.6.0 -> 3.9.0rc0
+PYSEC-2026-2657  # mlflow 3.6.0 -> NO FIX  # NO FIX AVAILABLE UPSTREAM
+PYSEC-2026-2658  # mlflow 3.6.0 -> 3.8.0rc0
+PYSEC-2026-2659  # mlflow 3.6.0 -> 3.11.0rc0
+PYSEC-2026-2660  # mlflow 3.6.0 -> 3.10.0
+PYSEC-2026-2661  # mlflow 3.6.0 -> 3.8.0rc0
+PYSEC-2026-3686  # mlflow 3.6.0 -> 3.13.0rc0
+PYSEC-2026-3687  # mlflow 3.6.0 -> 3.15.0
+PYSEC-2026-419  # mlflow 3.6.0 -> NO FIX  # NO FIX AVAILABLE UPSTREAM
+PYSEC-2026-421  # mlflow 3.6.0 -> 3.8.0rc0
+PYSEC-2026-423  # mlflow 3.6.0 -> 3.8.1
+PYSEC-2026-424  # mlflow 3.6.0 -> 3.9.0
+PYSEC-2026-425  # mlflow 3.6.0 -> 3.9.0rc0
+PYSEC-2026-93  # mlflow 3.6.0 -> 3.11.0rc0
+PYSEC-2026-94  # mlflow 3.6.0 -> 3.11.0rc0
+
+# pyarrow 22.0.0
+PYSEC-2026-113  # pyarrow 22.0.0 -> 23.0.1

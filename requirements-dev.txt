@@ -7,3 +7,7 @@ black==26.5.1
 httpx==0.28.1
 matplotlib==3.11.1
 pyarrow==22.0.0
+# Validates render.yaml against Render's official Blueprint JSON schema. Used by
+# tests/test_deploy_tooling.py as well as scripts/deploy/validate_blueprint.py, so the
+# deployment configuration is checked in the test matrix and not only in the CI job.
+jsonschema==4.26.0

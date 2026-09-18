@@ -1,7 +1,12 @@
 name: CI
 
-# Runs entirely on GitHub's free ubuntu-latest runners. Nothing here needs a GPU, a
-# paid runner, a cloud account or a secret.
+# The release gate. Nothing is deployed unless this workflow is green on main: both
+# Render services declare `autoDeployTrigger: checksPass`, so a commit that fails here
+# does not reach production. There is deliberately no second deploy path.
+#
+# Runs entirely on GitHub's free ubuntu-latest runners: no GPU, no paid runner, no cloud
+# account, no secret. The one network dependency is the pinned UCI dataset, which is
+# cached by checksum.
 on:
   push:
     branches: [main]
@@ -14,13 +19,15 @@ concurrency:
 
 env:
   PYTHONHASHSEED: "42"
-  # Single-threaded numerics: the runners are 2-vCPU, and thread-pool oversubscription
-  # makes the test suite slower and its timings meaningless.
+  # Single-threaded numerics: the runners are 2-vCPU, thread-pool oversubscription makes
+  # the suite slower, and the training fingerprint is only comparable against the
+  # recorded baseline when the thread configuration matches.
   OMP_NUM_THREADS: "1"
   OPENBLAS_NUM_THREADS: "1"
   MKL_NUM_THREADS: "1"
 
 jobs:
+  # ------------------------------------------------------------ static quality ------
   lint:
     name: Lint and format
     runs-on: ubuntu-latest
@@ -37,6 +44,37 @@ jobs:
       - name: Black (check only)
         run: black --check --diff src tests scripts
 
+  secrets:
+    name: Secret scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Install PyYAML
+        run: python -m pip install --quiet PyYAML
+      - name: Scan tracked files for credentials
+        run: python scripts/deploy/scan_secrets.py
+
+  blueprint:
+    name: Render Blueprint validation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+      - name: Install validators
+        # jsonschema validates render.yaml against Render's official schema, which is what
+        # catches fields the platform does not support (for example `plan` on a static
+        # site) before a deploy fails in the dashboard.
+        run: python -m pip install --quiet PyYAML jsonschema
+      - name: Validate render.yaml
+        run: python scripts/deploy/validate_blueprint.py
+
+  # ----------------------------------------------------------------- behaviour ------
   test:
     name: Tests (Python ${{ matrix.python-version }})
     runs-on: ubuntu-latest
@@ -62,8 +100,8 @@ jobs:
           python -m pip install --quiet -r requirements-dev.txt
           python -m pip install --quiet -e . --no-deps
 
-      # The raw files are ~6MB and are not committed. Caching them by checksum keeps
-      # CI off the UCI servers on every run while still verifying the pinned digests.
+      # The raw files are ~6MB and are not committed. Caching them by checksum keeps CI
+      # off the UCI servers on every run while still verifying the pinned digests.
       - name: Cache the raw dataset
         id: cache-data
         uses: actions/cache@v4
@@ -78,10 +116,10 @@ jobs:
       - name: Verify dataset checksums
         run: python scripts/fetch_data.py --verify
 
-      - name: Data validation tests
+      - name: Data contract validation
         run: python -m pytest tests/test_validation.py tests/test_schema_contract.py -q
 
-      - name: Unit and integration tests
+      - name: Unit, API and integration tests
         run: python -m pytest -q --durations=15 --junitxml=results/junit-${{ matrix.python-version }}.xml
 
       - name: Upload test results
@@ -93,7 +131,7 @@ jobs:
           if-no-files-found: warn
 
   pipeline:
-    name: End-to-end pipeline
+    name: End-to-end pipeline and reproducibility
     runs-on: ubuntu-latest
     needs: test
     steps:
@@ -120,6 +158,13 @@ jobs:
       - name: Train, track and register
         run: python scripts/train.py
 
+      # The reproducibility guarantee, re-checked on every push: the model fitted here
+      # must produce byte-identical predictions to the recorded baseline. A mismatch
+      # means the model changed, and fails the build instead of quietly invalidating the
+      # numbers in the documentation.
+      - name: Verify the training fingerprint against the recorded baseline
+        run: python scripts/verify/check_fingerprint.py
+
       - name: Smoke-test the served API
         run: python scripts/smoke_test.py
 
@@ -136,13 +181,15 @@ jobs:
             results/
           if-no-files-found: warn
 
+  # ------------------------------------------------- the container actually serves --
   docker:
-    name: Docker image build
+    name: Docker image, bootstrap and API end-to-end
     runs-on: ubuntu-latest
     needs: test
     steps:
       - uses: actions/checkout@v4
       - uses: docker/setup-buildx-action@v3
+
       - name: Build the serving image
         uses: docker/build-push-action@v6
         with:
@@ -153,28 +200,280 @@ jobs:
           tags: mlserve:ci
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
       - name: Report image size
         run: |
           docker image inspect mlserve:ci --format '{{.Size}}' \
             | awk '{printf "image size: %.1f MB\n", $1/1024/1024}'
-      - name: Start the container and check it serves
+
+      - name: Cache the raw dataset
+        id: cache-data
+        uses: actions/cache@v4
+        with:
+          path: data/raw
+          key: adult-raw-5b00264637db-a2a9044bc167
+
+      - name: Fetch the dataset
+        if: steps.cache-data.outputs.cache-hit != 'true'
+        run: python scripts/fetch_data.py
+
+      # A fresh volume owned by root, exactly like a Render persistent disk. This is what
+      # makes what follows a test of the deployment architecture rather than of a
+      # convenience path: the unprivileged app user genuinely cannot write this tree
+      # until the entrypoint repairs it.
+      - name: Create an empty data volume and seed the cached raw data
         run: |
-          mkdir -p artifacts/current
-          docker run -d --name mlserve-ci -p 8077:8077 \
-            -e MLSERVE_MODEL_SOURCE=file \
-            -v "$PWD/artifacts:/app/artifacts:ro" \
+          docker volume create mlserve-data
+          docker run --rm --user root -v mlserve-data:/var/data -v "$PWD/data/raw:/seed:ro" \
+            --entrypoint sh mlserve:ci \
+            -c 'mkdir -p /var/data/raw && cp /seed/adult.data /seed/adult.test /var/data/raw/'
+          docker run --rm --user root -v mlserve-data:/var/data --entrypoint sh mlserve:ci \
+            -c 'ls -ln /var/data/raw | head -3; echo "volume seeded root-owned, as Render mounts a disk"'
+
+      # The first-deploy path: the same command Render runs as preDeployCommand, through
+      # the same entrypoint, against the same image and volume.
+      - name: Run the first-deploy bootstrap
+        run: |
+          docker run --name mlserve-bootstrap \
+            -v mlserve-data:/var/data \
+            -e MLSERVE_DATA_ROOT=/var/data \
+            -e MLSERVE_MODEL_SOURCE=registry \
+            -e MLSERVE_MODEL_ALIAS=production \
+            mlserve:ci python scripts/deploy/init_production.py
+          docker logs mlserve-bootstrap
+          docker logs mlserve-bootstrap 2>&1 | grep -q "INIT_PRODUCTION_OK"
+
+      - name: Re-run the bootstrap to prove it is idempotent
+        run: |
+          docker run --rm \
+            -v mlserve-data:/var/data \
+            -e MLSERVE_DATA_ROOT=/var/data \
+            -e MLSERVE_MODEL_SOURCE=registry \
+            -e MLSERVE_MODEL_ALIAS=production \
+            mlserve:ci python scripts/deploy/init_production.py | tee /tmp/rerun.log
+          grep -q "INIT_PRODUCTION_SKIP" /tmp/rerun.log
+
+      - name: Start the service the way Render does
+        run: |
+          docker run -d --name mlserve-ci \
+            -e PORT=8077 \
+            -p 8077:8077 \
+            -v mlserve-data:/var/data \
+            -e MLSERVE_DATA_ROOT=/var/data \
+            -e MLSERVE_MODEL_SOURCE=registry \
+            -e MLSERVE_MODEL_ALIAS=production \
+            -e MLSERVE_HOST=0.0.0.0 \
+            -e MLSERVE_ADMIN_TOKEN=ci-admin-token-not-a-real-secret \
+            -e MLSERVE_CORS_ORIGINS=https://mlserve-frontend.onrender.com \
             mlserve:ci
-          # The container has no model bundle mounted in CI, so it must come up
-          # degraded rather than crash: /health answers, /ready does not.
-          for i in $(seq 1 30); do
-            if curl -fsS http://127.0.0.1:8077/health > /dev/null; then break; fi
+
+      # Readiness, not liveness: the service must reach "ready" because a model is
+      # loadable from the volume-backed registry, not merely because a process exists.
+      - name: Wait for readiness
+        run: |
+          for i in $(seq 1 60); do
+            code=$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8077/ready || true)
+            if [ "$code" = "200" ]; then echo "ready after ${i} attempt(s)"; exit 0; fi
             sleep 2
           done
-          curl -fsS http://127.0.0.1:8077/health
-          test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8077/ready)" = "503"
+          echo "service never became ready; last /ready status: $code"
+          curl -s http://127.0.0.1:8077/health || true
+          docker logs mlserve-ci
+          exit 1
+
+      # The same verifier that is pointed at a public Render URL, pointed at the
+      # container: one tool, one contract, exercised on every push.
+      - name: Verify the served API surface
+        run: |
+          python -m pip install --quiet httpx
+          python scripts/deploy/verify_deployment.py \
+            --backend-url http://127.0.0.1:8077 \
+            --frontend-origin https://mlserve-frontend.onrender.com
+
+      - name: Assert the serving process is not root
+        run: |
+          pid=$(docker inspect -f '{{.State.Pid}}' mlserve-ci)
+          uid=$(ps -o uid= -p "$pid" | tr -d ' ')
+          echo "uvicorn pid $pid runs as uid $uid"
+          test "$uid" = "10001" || { echo "expected the server to run as uid 10001"; exit 1; }
+
+      - name: Stop the container and check it shuts down cleanly
+        run: |
+          docker stop --time 30 mlserve-ci
+          code=$(docker inspect -f '{{.State.ExitCode}}' mlserve-ci)
+          echo "exit code after SIGTERM: $code"
+          # 0 = uvicorn drained and exited on SIGTERM; 137 would mean it had to be killed.
+          test "$code" = "0" || { docker logs mlserve-ci; exit 1; }
+
+      # Persistence across a restart, on an injected $PORT rather than the local default:
+      # a new container on the same volume must come up ready with the same model, which
+      # is the deployed-state promise and the Render port contract in one step.
+      - name: Restart on the same volume with an injected PORT
+        run: |
+          docker rm mlserve-ci
+          docker run -d --name mlserve-ci-restart \
+            -e PORT=10000 -p 10000:10000 \
+            -v mlserve-data:/var/data \
+            -e MLSERVE_DATA_ROOT=/var/data \
+            -e MLSERVE_MODEL_SOURCE=registry \
+            -e MLSERVE_MODEL_ALIAS=production \
+            -e MLSERVE_HOST=0.0.0.0 \
+            -e MLSERVE_ADMIN_TOKEN=ci-admin-token-not-a-real-secret \
+            mlserve:ci
+          code=""
+          for i in $(seq 1 60); do
+            code=$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:10000/ready || true)
+            if [ "$code" = "200" ]; then break; fi
+            sleep 2
+          done
+          test "$code" = "200" || { echo "did not become ready after restart"; docker logs mlserve-ci-restart; exit 1; }
+          curl -fsS http://127.0.0.1:10000/model-info | tee /tmp/model-info.json
+          python -c "import json; d=json.load(open('/tmp/model-info.json')); assert d.get('model_version'), 'no model_version after restart'; print('model version after restart:', d['model_version'])"
+
       - name: Container logs
         if: always()
-        run: docker logs mlserve-ci || true
-      - name: Stop the container
+        run: |
+          docker logs mlserve-ci || true
+          docker logs mlserve-ci-restart || true
+          docker logs mlserve-bootstrap || true
+
+      - name: Clean up
         if: always()
-        run: docker rm -f mlserve-ci || true
+        run: |
+          docker rm -f mlserve-ci mlserve-ci-restart mlserve-bootstrap || true
+          docker volume rm mlserve-data || true
+
+  # ------------------------------------------------------------------ frontend ------
+  frontend:
+    name: Frontend checks, build and browser tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # The frontend is validated in full whenever it is present. The presence check
+      # makes the job's contract explicit rather than silently green: a missing
+      # package.json inside an existing frontend/ directory is an error, not a skip.
+      - name: Check the frontend is present
+        id: detect
+        run: |
+          if [ -d frontend ]; then
+            test -f frontend/package.json || { echo "frontend/ exists but package.json is missing"; exit 1; }
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=false" >> "$GITHUB_OUTPUT"
+            echo "No frontend directory in this revision: nothing to validate."
+          fi
+
+      - uses: actions/setup-node@v4
+        if: steps.detect.outputs.present == 'true'
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install
+        if: steps.detect.outputs.present == 'true'
+        working-directory: frontend
+        run: npm ci
+
+      - name: Type-check
+        if: steps.detect.outputs.present == 'true'
+        working-directory: frontend
+        run: npm run typecheck
+
+      - name: Lint
+        if: steps.detect.outputs.present == 'true'
+        working-directory: frontend
+        run: npm run lint
+
+      - name: Production build
+        if: steps.detect.outputs.present == 'true'
+        working-directory: frontend
+        env:
+          VITE_API_BASE_URL: https://mlserve-backend.onrender.com
+        run: npm run build
+
+      - name: Assert the bundle carries no privileged secret
+        if: steps.detect.outputs.present == 'true'
+        working-directory: frontend
+        run: |
+          # Vite inlines VITE_* into the public bundle, so anything secret-shaped there
+          # is public. The frontend must never hold the admin token.
+          if grep -rInE 'ghp_[A-Za-z0-9]{36}|AKIA[0-9A-Z]{16}|-----BEGIN [A-Z ]*PRIVATE KEY-----' dist/; then
+            echo "a credential pattern was found in the built bundle"; exit 1
+          fi
+          if grep -rIn 'MLSERVE_ADMIN_TOKEN' dist/; then
+            echo "the admin token name appears in the built bundle"; exit 1
+          fi
+          echo "no credential patterns in the production bundle"
+
+      - name: Audit frontend dependencies
+        if: steps.detect.outputs.present == 'true'
+        working-directory: frontend
+        run: npm audit --audit-level=high
+
+      - name: Browser tests
+        if: steps.detect.outputs.present == 'true'
+        working-directory: frontend
+        run: npx playwright install --with-deps chromium && npm run test:e2e
+
+      - name: Upload frontend artefacts
+        if: always() && steps.detect.outputs.present == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-dist
+          path: |
+            frontend/dist
+            frontend/playwright-report
+          if-no-files-found: warn
+
+  # ------------------------------------------------------ dependency security -------
+  audit:
+    name: Dependency audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Audit the serving pin set (no exceptions)
+        # requirements.txt is clean as committed, so this is a hard, unconditional gate.
+        run: |
+          python -m pip install --quiet pip-audit
+          pip-audit -r requirements.txt --progress-spinner off
+
+      - name: Audit the deployment pin set against the recorded baseline
+        # requirements-deploy.txt adds MLflow + pyarrow. MLflow is pinned to the version
+        # the registry behaviour is tested against, so its advisories are recorded in
+        # scripts/deploy/audit_baseline.txt (each with a reason) and ignored by id. Any
+        # advisory NOT in that file -- including any new one -- fails this job. The full
+        # findings table is printed first, so nothing is hidden by the exception list.
+        run: |
+          echo "Full findings for the deployment pin set:"
+          pip-audit -r requirements-deploy.txt --progress-spinner off || true
+          echo
+          mapfile -t ignores < <(grep -vE '^\s*#|^\s*$' scripts/deploy/audit_baseline.txt | awk '{print $1}')
+          args=()
+          for id in "${ignores[@]}"; do args+=(--ignore-vuln "$id"); done
+          echo "Ignoring ${#ignores[@]} recorded advisory id(s) from scripts/deploy/audit_baseline.txt"
+          pip-audit -r requirements-deploy.txt --progress-spinner off "${args[@]}"
+
+  # ---------------------------------------------------------- release readiness -----
+  release-readiness:
+    name: Release readiness (main only)
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    needs: [lint, secrets, blueprint, test, pipeline, docker, frontend, audit]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Confirm the deployable state
+        run: |
+          echo "All gates passed: lint, secret scan, Blueprint validation, tests (3.12/3.13),"
+          echo "end-to-end pipeline with fingerprint reproducibility, container bootstrap and"
+          echo "API verification, frontend build and browser tests, dependency audit."
+          echo
+          echo "Deployable artefacts:"
+          ls -l render.yaml docker/Dockerfile docker/entrypoint.sh requirements-deploy.txt
+          echo
+          echo "Render deploys this commit only because its checks passed"
+          echo "(autoDeployTrigger: checksPass on both services)."
