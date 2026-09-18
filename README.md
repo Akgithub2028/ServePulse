@@ -9,8 +9,7 @@ and rollback.
 is estimated, and claims the evidence does not support are absent by design — a
 verification script enforces that.
 
-**This is not production-ready**, and no document here says otherwise. The specific
-gaps are listed in [Limitations](#limitations).
+**The specific gaps are listed in [Limitations](#limitations).
 
 ---
 
