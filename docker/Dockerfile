@@ -47,7 +47,7 @@ FROM python:3.13.9-slim-bookworm AS runtime
 
 LABEL org.opencontainers.image.title="mlserve" \
       org.opencontainers.image.description="Adult income classifier serving API" \
-      org.opencontainers.image.source="https://github.com/example/ml-serving-platform"
+      org.opencontainers.image.source="https://github.com/Akgithub2028/GitPushTern"
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
