@@ -71,6 +71,9 @@ if [ "$(id -u)" != "0" ]; then
     # Already unprivileged (e.g. `docker run --user 10001`). Nothing to drop or repair;
     # if the data root is unwritable the app reports it clearly instead of failing silently.
     echo "mlserve: running as $(id -un) (uid $(id -u))"
+    if [ "$#" -eq 0 ]; then
+        python scripts/deploy/init_production.py || true
+    fi
     exec "$@"
 fi
 
@@ -86,6 +89,9 @@ if [ -n "$DATA_ROOT" ]; then
 fi
 
 if command -v setpriv >/dev/null 2>&1; then
+    if [ "$#" -eq 0 ]; then
+        setpriv --reuid="$APP_UID" --regid="$APP_GID" --init-groups python scripts/deploy/init_production.py || true
+    fi
     exec setpriv --reuid="$APP_UID" --regid="$APP_GID" --init-groups "$@"
 fi
 
