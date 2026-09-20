@@ -18,8 +18,6 @@
 [![Test Suite](https://img.shields.io/badge/Tests-467%20Passed%20%7C%200%20Failed-brightgreen?style=for-the-badge&logo=pytest&logoColor=white)](#headline-results)
 [![p50 Latency](https://img.shields.io/badge/p50%20Latency-3.68ms-blueviolet?style=for-the-badge)](#headline-results)
 [![Test ROC-AUC](https://img.shields.io/badge/Test%20ROC--AUC-0.9268-success?style=for-the-badge)](#headline-results)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow?style=for-the-badge)](LICENSE)
-[![Author](https://img.shields.io/badge/Author-Aayaann%20Kausar-blue?style=for-the-badge)](https://github.com/Akgithub2028)
 
 <br/>
 
