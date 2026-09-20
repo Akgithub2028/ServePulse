@@ -23,8 +23,17 @@ DEFAULT_CONFIG_PATH = Path(os.environ.get("MLSERVE_CONFIG", "configs/config.yaml
 
 
 def project_root() -> Path:
-    """Repository root, resolved from this file so scripts work from any cwd."""
-    return Path(__file__).resolve().parents[2]
+    """Repository root, resolved from environment, cwd, or file location."""
+    if root := os.environ.get("MLSERVE_PROJECT_ROOT"):
+        return Path(root).resolve()
+    if (Path("/app/configs/config.yaml")).exists():
+        return Path("/app")
+    if (Path.cwd() / "configs/config.yaml").exists():
+        return Path.cwd().resolve()
+    candidate = Path(__file__).resolve().parents[2]
+    if (candidate / "configs/config.yaml").exists():
+        return candidate
+    return Path.cwd().resolve()
 
 
 class Config:

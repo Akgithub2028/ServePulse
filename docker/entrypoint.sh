@@ -32,7 +32,11 @@ WORKERS="${MLSERVE_WORKERS:-1}"
 APP_USER="${MLSERVE_APP_USER:-mlserve}"
 APP_UID="${MLSERVE_APP_UID:-10001}"
 APP_GID="${MLSERVE_APP_GID:-10001}"
-DATA_ROOT="${MLSERVE_DATA_ROOT:-}"
+DATA_ROOT="${MLSERVE_DATA_ROOT:-/app/data}"
+PYTHON_BIN="/opt/venv/bin/python"
+if [ ! -x "$PYTHON_BIN" ]; then
+    PYTHON_BIN="python"
+fi
 
 export OMP_NUM_THREADS="${OMP_NUM_THREADS:-1}"
 export OPENBLAS_NUM_THREADS="${OPENBLAS_NUM_THREADS:-1}"
@@ -72,7 +76,7 @@ if [ "$(id -u)" != "0" ]; then
     # if the data root is unwritable the app reports it clearly instead of failing silently.
     echo "mlserve: running as $(id -un) (uid $(id -u))"
     if [ "$#" -eq 0 ]; then
-        python scripts/deploy/init_production.py || true
+        "$PYTHON_BIN" scripts/deploy/init_production.py || true
     fi
     exec "$@"
 fi
@@ -88,9 +92,17 @@ if [ -n "$DATA_ROOT" ]; then
     fi
 fi
 
+# Ensure /app/artifacts is also present and owned by app user
+mkdir -p /app/artifacts 2>/dev/null || true
+if [ -d /app/artifacts ]; then
+    if [ -n "$(find /app/artifacts ! -user "$APP_UID" -print -quit 2>/dev/null)" ]; then
+        chown -R "$APP_UID:$APP_GID" /app/artifacts 2>/dev/null || true
+    fi
+fi
+
 if command -v setpriv >/dev/null 2>&1; then
     if [ "$#" -eq 0 ]; then
-        setpriv --reuid="$APP_UID" --regid="$APP_GID" --init-groups python scripts/deploy/init_production.py || true
+        setpriv --reuid="$APP_UID" --regid="$APP_GID" --init-groups "$PYTHON_BIN" scripts/deploy/init_production.py || true
     fi
     exec setpriv --reuid="$APP_UID" --regid="$APP_GID" --init-groups "$@"
 fi
@@ -99,6 +111,9 @@ fi
 # argv assembled above is re-joined -- safe because every component was validated above.
 if command -v su >/dev/null 2>&1; then
     echo "mlserve: setpriv unavailable, dropping privileges with su"
+    if [ "$#" -eq 0 ]; then
+        su -s /bin/sh "$APP_USER" -c "$PYTHON_BIN scripts/deploy/init_production.py" || true
+    fi
     exec su -s /bin/sh "$APP_USER" -c "$*"
 fi
 

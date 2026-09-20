@@ -67,6 +67,8 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PATH="/opt/venv/bin:$PATH" \
     MLSERVE_CONFIG=/app/configs/config.yaml \
+    MLSERVE_PROJECT_ROOT=/app \
+    MLSERVE_DATA_ROOT=/app/data \
     HOME=/home/mlserve \
     OMP_NUM_THREADS=1 \
     OPENBLAS_NUM_THREADS=1 \
@@ -97,7 +99,7 @@ COPY docker/entrypoint.sh /usr/local/bin/entrypoint.sh
 # deliberately NOT baked in: an image that contains its weights has to be rebuilt to
 # promote a model, which defeats the registry. `serving.model_source: file` reads the
 # mounted bundle; `registry` reaches an MLflow server instead.
-RUN mkdir -p /app/artifacts /app/data
+RUN mkdir -p /app/artifacts /app/data /app/data/raw /app/data/processed /app/data/scenarios /app/data/artifacts /app/data/results /app/data/mlruns
 
 # The application user. It owns the app tree and is the identity the *serving process*
 # runs as (uid 10001) -- asserted at runtime by the CI docker job, which reads the UID of
