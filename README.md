@@ -7,21 +7,15 @@
 
 <br/>
 
-[![Python 3.12 | 3.13](https://img.shields.io/badge/Python-3.12%20%7C%203.13-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
-[![FastAPI](https://img.shields.io/badge/FastAPI-0.115+-009688?style=for-the-badge&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
-[![Scikit-Learn](https://img.shields.io/badge/scikit--learn-1.5+-F7931E?style=for-the-badge&logo=scikit-learn&logoColor=white)](https://scikit-learn.org/)
-[![MLflow](https://img.shields.io/badge/MLflow-3.0+-0194E2?style=for-the-badge&logo=mlflow&logoColor=white)](https://mlflow.org/)
-[![Prometheus](https://img.shields.io/badge/Prometheus-Observability-E6522C?style=for-the-badge&logo=prometheus&logoColor=white)](https://prometheus.io/)
-[![Docker](https://img.shields.io/badge/Docker-Multi--Stage-2496ED?style=for-the-badge&logo=docker&logoColor=white)](https://www.docker.com/)
+[![Python](https://img.shields.io/badge/Python-3.12%20%7C%203.13-blue?style=flat-square&logo=python&logoColor=white)](https://www.python.org/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.115+-teal?style=flat-square&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
+[![MLflow](https://img.shields.io/badge/MLflow-3.0+-0194E2?style=flat-square&logo=mlflow&logoColor=white)](https://mlflow.org/)
+[![Docker](https://img.shields.io/badge/Docker-Multi--Stage-2496ED?style=flat-square&logo=docker&logoColor=white)](https://www.docker.com/)
+[![Live Console](https://img.shields.io/badge/Render-Live%20Console-46E3B7?style=flat-square&logo=render&logoColor=black)](https://serve-pulse-console.onrender.com)
+[![API Docs](https://img.shields.io/badge/Swagger-API%20Docs-85EA2D?style=flat-square&logo=swagger&logoColor=black)](https://servepulse-backend.onrender.com/docs)
+[![CI](https://img.shields.io/badge/CI-Passing-success?style=flat-square&logo=githubactions&logoColor=white)](https://github.com/Akgithub2028/ServePulse/actions)
+[![Latency](https://img.shields.io/badge/p50%20Latency-3.68ms-blueviolet?style=flat-square)](#headline-results)
 
-[![CI Pipeline](https://img.shields.io/badge/CI%20Pipeline-Passing%20(10%20Jobs)-success?style=for-the-badge&logo=githubactions&logoColor=white)](https://github.com/Akgithub2028/ServePulse/actions)
-[![Test Suite](https://img.shields.io/badge/Tests-467%20Passed%20%7C%200%20Failed-brightgreen?style=for-the-badge&logo=pytest&logoColor=white)](#headline-results)
-[![p50 Latency](https://img.shields.io/badge/p50%20Latency-3.68ms-blueviolet?style=for-the-badge)](#headline-results)
-[![Test ROC-AUC](https://img.shields.io/badge/Test%20ROC--AUC-0.9268-success?style=for-the-badge)](#headline-results)
-
-[![Live Console](https://img.shields.io/badge/Render-Live%20Console-46E3B7?style=for-the-badge&logo=render&logoColor=black)](https://serve-pulse-console.onrender.com)
-[![FastAPI Docs](https://img.shields.io/badge/Swagger-API%20Docs-009688?style=for-the-badge&logo=fastapi&logoColor=white)](https://servepulse-backend.onrender.com/docs)
-[![Platform Specs](https://img.shields.io/badge/Platform-OpenAPI%20Specs-6366F1?style=for-the-badge&logo=react&logoColor=white)](https://serve-pulse-console.onrender.com/platform)
 
 <br/>
 
