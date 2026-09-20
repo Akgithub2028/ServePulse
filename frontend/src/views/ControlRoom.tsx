@@ -102,11 +102,13 @@ export default function ControlRoom() {
       <div className="grid grid--stats">
         <Stat
           label="Service"
-          value={service.health ? (service.health.model_loaded ? "ready" : "degraded") : "—"}
+          value={service.ready_ ? "ready" : service.health ? (service.health.model_loaded ? "ready" : "degraded") : "—"}
           tone={service.ready_ ? "ok" : service.health ? "warn" : "danger"}
           foot={
             service.health ? (
               <span className="mono">v{service.health.version}</span>
+            ) : service.ready_ ? (
+              <span className="mono">v{service.model?.model_version ?? "1"}</span>
             ) : (
               <span>no response</span>
             )
@@ -114,7 +116,7 @@ export default function ControlRoom() {
         />
         <Stat
           label="Uptime"
-          value={duration(service.health?.uptime_seconds)}
+          value={service.health?.uptime_seconds != null ? duration(service.health.uptime_seconds) : service.ready_ ? "active" : "—"}
           foot={<span>since process start</span>}
         />
         <Stat

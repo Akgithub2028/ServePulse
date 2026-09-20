@@ -78,6 +78,7 @@ export function useServiceState(intervalMs = 0): ServiceState {
     !ready_;
   const unreachable =
     !anyLoading &&
+    !ready_ &&
     !healthPoll.data &&
     (healthPoll.failure?.kind === "transport" || healthPoll.failure?.kind === "timeout");
 
@@ -98,13 +99,6 @@ export function useServiceState(intervalMs = 0): ServiceState {
 
 export function headlineFor(state: ServiceState): ServiceHeadline {
   if (state.loading) return { tone: "muted", label: "connecting…" };
-  if (state.unreachable) {
-    return {
-      tone: "danger",
-      label: "API unreachable",
-      detail: state.failure?.message,
-    };
-  }
   if (state.ready_) {
     return {
       tone: "ok",
@@ -112,6 +106,13 @@ export function headlineFor(state: ServiceState): ServiceHeadline {
         ? `serving ${state.model.model_version}`
         : "ready",
       detail: state.model?.model_alias ? `alias ${state.model.model_alias}` : undefined,
+    };
+  }
+  if (state.unreachable) {
+    return {
+      tone: "danger",
+      label: "API unreachable",
+      detail: state.failure?.message,
     };
   }
   if (state.health?.status === "degraded") {
