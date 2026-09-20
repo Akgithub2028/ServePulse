@@ -529,6 +529,7 @@ def create_app(
     app.add_middleware(
         CORSMiddleware,
         allow_origins=app.state.service.cors_origins,
+        allow_origin_regex=r"https://.*\.onrender\.com",
         allow_credentials=False,
         allow_methods=["GET", "POST", "OPTIONS"],
         allow_headers=["Content-Type", "X-Request-ID", "X-Admin-Token", "Authorization"],
