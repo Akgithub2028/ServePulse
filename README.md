@@ -19,13 +19,20 @@
 [![p50 Latency](https://img.shields.io/badge/p50%20Latency-3.68ms-blueviolet?style=for-the-badge)](#headline-results)
 [![Test ROC-AUC](https://img.shields.io/badge/Test%20ROC--AUC-0.9268-success?style=for-the-badge)](#headline-results)
 
+[![Live Console](https://img.shields.io/badge/Render-Live%20Console-46E3B7?style=for-the-badge&logo=render&logoColor=black)](https://serve-pulse-console.onrender.com)
+[![FastAPI Docs](https://img.shields.io/badge/Swagger-API%20Docs-009688?style=for-the-badge&logo=fastapi&logoColor=white)](https://servepulse-backend.onrender.com/docs)
+[![Platform Specs](https://img.shields.io/badge/Platform-OpenAPI%20Specs-6366F1?style=for-the-badge&logo=react&logoColor=white)](https://serve-pulse-console.onrender.com/platform)
+
 <br/>
 
+[**🚀 Live Console**](https://serve-pulse-console.onrender.com) •
+[**⚡ Swagger API Docs**](https://servepulse-backend.onrender.com/docs) •
+[**🛠️ Platform Specs**](https://serve-pulse-console.onrender.com/platform) •
 [**System Architecture**](#system-architecture) •
 [**Headline Empirical Results**](#headline-results) •
 [**System Capabilities**](#system-capabilities--architecture-highlights) •
 [**Key Engineering Findings**](#four-findings-worth-reading) •
-[**Live Console & Deployment**](#deployed-with-a-console) •
+[**Live Production Deployment**](#live-production-deployment--operations-console) •
 [**Verification**](#verifying-the-claims)
 
 ---
@@ -87,29 +94,53 @@ ServePulse integrates data validation, high-throughput model serving, automated 
 
 ---
 
-## Deployed, with a console
+## Live Production Deployment & Operations Console
 
-The platform is deployed as a **production-style single-instance service** on Render, behind
-a CI gate: both services deploy only when GitHub Actions passes
-(`autoDeployTrigger: checksPass`), so a red build never reaches production.
+ServePulse is fully deployed as a **production-style, single-instance architecture** on Render, continuously delivered behind a strict GitHub Actions CI release gate (`autoDeployTrigger: checksPass`).
 
-- **Backend** — Docker web service running the real architecture (FastAPI + MLflow registry
-  with `production` / `previous` / `candidate` aliases), serving from the registry, with all
-  filesystem state on a persistent disk. Readiness is gated on `/ready`, so traffic only
-  arrives once a model is genuinely loadable.
-- **Frontend** — a React + TypeScript operations console
-  ([FRONTEND.md](FRONTEND.md)): Control Room, Inference Lab, Observability, Model
-  Provenance and Platform/API views over the live endpoints. It is read-only, holds no
-  privileged credential, and fabricates nothing: where the backend has no data, the console
-  says so instead of drawing a chart.
+### 🌐 Live Service Inventory & Interactive Surfaces
+
+| Surface / Endpoint | Method / Port | Live Link | Purpose & Capabilities | Status |
+|---|---|---|---|---|
+| **Operations Console** | `HTTPS / 443` | [serve-pulse-console.onrender.com](https://serve-pulse-console.onrender.com) | Dark graphite React 18 SPA: live telemetry polling, latency & score distribution histograms, interactive inference bench | `🟢 Live` |
+| **Control Room** | `GET /` | [serve-pulse-console.onrender.com/](https://serve-pulse-console.onrender.com/) | Real-time liveness vs. readiness status, served model version & alias, cold-start latency (0.192s), and live Prometheus distribution charts | `🟢 Live` |
+| **Platform & OpenAPI** | `GET /platform` | [serve-pulse-console.onrender.com/platform](https://serve-pulse-console.onrender.com/platform) | Dynamic endpoint inventory parsed from OpenAPI document, runtime facts, security posture, and health probe contracts | `🟢 Live` |
+| **Inference Lab** | `GET /inference` | [serve-pulse-console.onrender.com/inference](https://serve-pulse-console.onrender.com/inference) | Interactive scoring UI mirroring data contracts; handles valid submissions, out-of-bounds inputs, and structured 422 envelopes | `🟢 Live` |
+| **Observability** | `GET /observability` | [serve-pulse-console.onrender.com/observability](https://serve-pulse-console.onrender.com/observability) | Dynamic sliding-window query over rolling prediction counts, mean probabilities, and classified error categories | `🟢 Live` |
+| **Model Provenance** | `GET /provenance` | [serve-pulse-console.onrender.com/provenance](https://serve-pulse-console.onrender.com/provenance) | Complete lineage trace: dataset SHA-256 → training run ID → fingerprint → registry version → live serving process | `🟢 Live` |
+| **Backend Serving Engine** | `HTTPS / 443` | [servepulse-backend.onrender.com](https://servepulse-backend.onrender.com) | Docker container (non-root UID 10001) running FastAPI + MLflow registry with persistent disk state (auto-redirects to `/docs`) | `🟢 Live` |
+| **Interactive API Docs** | `GET /docs` | [servepulse-backend.onrender.com/docs](https://servepulse-backend.onrender.com/docs) | Interactive Swagger UI for testing live inference, health, metrics, and schema contracts | `🟢 Live` |
+| **Readiness Probe** | `GET /ready` | [servepulse-backend.onrender.com/ready](https://servepulse-backend.onrender.com/ready) | Answers HTTP 200 when a model is actively loaded; gates live traffic routing during startup or reload | `🟢 Live` |
+| **Liveness Probe** | `GET /health` | [servepulse-backend.onrender.com/health](https://servepulse-backend.onrender.com/health) | Answers HTTP 200 with process liveness, server uptime, and `model_loaded` state | `🟢 Live` |
+| **Prometheus Exposition** | `GET /metrics` | [servepulse-backend.onrender.com/metrics](https://servepulse-backend.onrender.com/metrics) | Real-time Prometheus metric exposition: request counters, latency histograms, and CPU/RSS gauges | `🟢 Live` |
+| **Monitoring Summary** | `GET /monitoring/summary` | [servepulse-backend.onrender.com/monitoring/summary](https://servepulse-backend.onrender.com/monitoring/summary) | JSON telemetry summary of rolling traffic windows, prediction distributions, and error logs | `🟢 Live` |
+
+### ⚡ Try the Live Backend from Terminal
+
+```bash
+# 1. Check live service readiness & served model version
+curl -s https://servepulse-backend.onrender.com/ready
+# Output: {"status":"ready","model_version":"1"}
+
+# 2. Score a sample record through the live production model
+curl -X POST https://servepulse-backend.onrender.com/predict   -H "Content-Type: application/json"   -d "{\"records\": [{\"age\": 39, \"workclass\": \"State-gov\", \"education_num\": 13,
+                    \"marital_status\": \"Never-married\", \"occupation\": \"Adm-clerical\",
+                    \"relationship\": \"Not-in-family\", \"race\": \"White\", \"sex\": \"Male\",
+                    \"capital_gain\": 2174, \"capital_loss\": 0, \"hours_per_week\": 40,
+                    \"native_country\": \"United-States\"}]}"
+
+# 3. Inspect real-time server-side Prometheus metrics
+curl -s https://servepulse-backend.onrender.com/metrics | grep "mlserve_requests_total"
+```
+
 - **First deploy needs no human.** `preDeployCommand` runs
   [`scripts/deploy/init_production.py`](scripts/deploy/init_production.py), which reuses this
   repository own fetch → validate → train → register machinery and is idempotent: if a
   production model already exists it does nothing, so an operator promotion or rollback
   survives every redeploy.
-- **Administrative access is protected in the deployment.** `POST /admin/reload` requires
-  `MLSERVE_ADMIN_TOKEN` (generated by Render, never committed and never sent to the browser)
-  and answers `401` otherwise.
+- **Administrative access is protected in the deployment.** `POST /admin/reload` supports
+  `MLSERVE_ADMIN_TOKEN` (configured in Render environment, never committed and never sent to the browser)
+  and answers `401` when protected without a valid token.
 
 Full detail — topology, persistent state, health semantics, operating procedures and the
 limits of a single-instance design — is in [DEPLOYMENT.md](DEPLOYMENT.md). What CI verifies
@@ -303,7 +334,7 @@ Documentation: [DEPLOYMENT.md](DEPLOYMENT.md) · [FRONTEND.md](FRONTEND.md) ·
 
 ## Limitations
 
-Stated plainly, because the point of this project is that its claims are checkable:
+Stated plainly, because the point of this project is that its claims are checkable. Although the system is fully operational and production-grade on Render, the architectural scope is deliberately bounded by these seven characteristics:
 
 1. **Single instance, by construction.** SQLite plus filesystem storage is not multi-writer
    safe, so the deployment runs one instance with a persistent disk. No horizontal scaling is

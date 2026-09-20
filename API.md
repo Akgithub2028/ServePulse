@@ -1,7 +1,8 @@
 # Serving API
 
-Interactive docs at `http://127.0.0.1:8077/docs` once running; the OpenAPI schema is
-generated from the same contract the model was trained against.
+Interactive docs at `http://127.0.0.1:8077/docs` locally or **[https://servepulse-backend.onrender.com/docs](https://servepulse-backend.onrender.com/docs)** in production; the OpenAPI schema is generated from the same contract the model was trained against.
+
+Live endpoints and runtime contracts can also be inspected directly through the [Platform & OpenAPI View](https://serve-pulse-console.onrender.com/platform) in the operations console.
 
 ```bash
 python scripts/serve.py            # thread-pinned by default; see BENCHMARKS.md
@@ -9,15 +10,15 @@ python scripts/serve.py            # thread-pinned by default; see BENCHMARKS.md
 
 ## Endpoints
 
-| Method | Path | Purpose |
-|---|---|---|
-| GET | `/health` | Liveness plus whether a model is loaded |
-| GET | `/ready` | Readiness — 200 only when a prediction could succeed |
-| GET | `/model-info` | Full provenance of the model currently served |
-| POST | `/predict` | Score a batch of records |
-| GET | `/metrics` | Prometheus exposition |
-| GET | `/monitoring/summary` | Recent traffic and prediction distribution |
-| POST | `/admin/reload` | Re-resolve the registry alias and hot-swap the model |
+| Method | Path | Live URL | Purpose |
+|---|---|---|---|
+| GET | `/health` | [`/health`](https://servepulse-backend.onrender.com/health) | Liveness plus whether a model is loaded |
+| GET | `/ready` | [`/ready`](https://servepulse-backend.onrender.com/ready) | Readiness — 200 only when a prediction could succeed |
+| GET | `/model-info` | [`/model-info`](https://servepulse-backend.onrender.com/model-info) | Full provenance of the model currently served |
+| POST | `/predict` | [`/predict`](https://servepulse-backend.onrender.com/predict) | Score a batch of records |
+| GET | `/metrics` | [`/metrics`](https://servepulse-backend.onrender.com/metrics) | Prometheus exposition |
+| GET | `/monitoring/summary` | [`/monitoring/summary`](https://servepulse-backend.onrender.com/monitoring/summary) | Recent traffic and prediction distribution |
+| POST | `/admin/reload` | `/admin/reload` | Re-resolve the registry alias and hot-swap the model |
 
 ### `GET /health`
 

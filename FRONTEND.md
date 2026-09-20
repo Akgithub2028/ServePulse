@@ -1,6 +1,7 @@
-# Frontend — mlserve operations console
+# Frontend — ServePulse Operations Console
 
-A React + TypeScript control plane over the existing API, deployed as a Render static site.
+A React 18 + TypeScript operations control plane over the serving API, deployed live on Render:
+**[https://serve-pulse-console.onrender.com](https://serve-pulse-console.onrender.com)**.
 It is a **read-only** surface: it renders what the platform actually reports and holds no
 privileged credential.
 
@@ -62,13 +63,13 @@ here is why it is stale", not a blank panel.
 
 ## The five views
 
-| View | Answers | Notable details |
-|---|---|---|
-| **Control Room** | Is the platform healthy? | Shows liveness and readiness as *two* facts (alive-but-idle is a real state), the served model's identity, uptime, cold-start cost, the prediction store's counters, and output/latency distributions parsed from the Prometheus exposition |
-| **Inference Lab** | What does the model answer? | Real `POST /predict`. Client validation mirrors the data contract, so a bad value is refused with the API's own reasoning rather than coerced into something it would accept. All five failure classes render distinctly, including the backend's per-field 422 details |
-| **Observability** | What has the platform recorded? | Traffic, latency, distributions, per-model-version split, event kinds, with a window control that genuinely re-queries `/monitoring/summary`. It states plainly that per-request history is not stored, instead of inventing a trend line |
-| **Model Provenance** | Where did this model come from? | A trace: dataset version → training run → behaviour fingerprint → registry version → serving process, with offline metrics and the real input-column contract |
-| **Platform / API** | What is this system? | Endpoint inventory read from the service's own OpenAPI document, health/readiness semantics, runtime facts, and the security posture in plain language |
+| View | Live Link | Answers | Notable details |
+|---|---|---|---|
+| **Control Room** | [`/`](https://serve-pulse-console.onrender.com/) | Is the platform healthy? | Shows liveness and readiness as *two* facts (alive-but-idle is a real state), the served model's identity, uptime, cold-start cost (0.192s), the prediction store's counters, and output/latency distributions parsed from the Prometheus exposition |
+| **Inference Lab** | [`/inference`](https://serve-pulse-console.onrender.com/inference) | What does the model answer? | Real `POST /predict`. Client validation mirrors the data contract, so a bad value is refused with the API's own reasoning rather than coerced into something it would accept. All five failure classes render distinctly, including the backend's per-field 422 details |
+| **Observability** | [`/observability`](https://serve-pulse-console.onrender.com/observability) | What has the platform recorded? | Traffic, latency, distributions, per-model-version split, event kinds, with a window control that genuinely re-queries `/monitoring/summary`. It states plainly that per-request history is not stored, instead of inventing a trend line |
+| **Model Provenance** | [`/provenance`](https://serve-pulse-console.onrender.com/provenance) | Where did this model come from? | A trace: dataset version → training run → behaviour fingerprint → registry version → serving process, with offline metrics and the real input-column contract |
+| **Platform / API** | [`/platform`](https://serve-pulse-console.onrender.com/platform) | What is this system? | Endpoint inventory read from the service's own OpenAPI document, health/readiness semantics, runtime facts, and the security posture in plain language |
 
 ---
 

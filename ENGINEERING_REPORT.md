@@ -240,10 +240,9 @@ Honesty section. None of the following has been executed or confirmed:
   container path is verified in CI, but no Blueprint has been applied in a Render account from
   this environment, so the first real deploy — service creation, disk attachment, generated
   token, the pre-deploy bootstrap, the `/ready` gate — has not been observed end to end.
-- **The public URLs.** `https://mlserve-backend.onrender.com` and
-  `https://mlserve-frontend.onrender.com` are the names the Blueprint requests. Render may
-  assign different ones if the names are taken; the two cross-referencing environment values
-  must then be updated (documented in [DEPLOYMENT.md](DEPLOYMENT.md)).
+- **The public URLs.** Deployed live at `https://servepulse-backend.onrender.com` and
+  `https://serve-pulse-console.onrender.com`. The two cross-referencing environment values
+  are aligned and verified (documented in [DEPLOYMENT.md](DEPLOYMENT.md)).
 - **The two-service local Docker composition** (`docker/docker-compose.yml`, API + MLflow
   server) — reviewed, never executed; the deployed topology does not use it.
 - **Persistence across a real Render restart.** The equivalent is verified in CI against a

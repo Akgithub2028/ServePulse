@@ -131,8 +131,8 @@ Verify the result from outside:
 
 ```bash
 python scripts/deploy/verify_deployment.py \
-  --backend-url https://mlserve-backend.onrender.com \
-  --frontend-url https://mlserve-frontend.onrender.com
+  --backend-url https://servepulse-backend.onrender.com \
+  --frontend-url https://serve-pulse-console.onrender.com
 ```
 
 It is **non-mutating**: it never promotes, rolls back or reloads a model, and its only

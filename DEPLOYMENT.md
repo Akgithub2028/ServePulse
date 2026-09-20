@@ -25,9 +25,10 @@ GitHub repository ──► GitHub Actions CI ──► Render (deploy only if c
                                               │
                            ┌──────────────────┴───────────────────┐
                            ▼                                      ▼
-              mlserve-backend (Docker web service)      mlserve-frontend (static site)
-              FastAPI + MLflow/SQLite on a disk          React console, HTTPS → API
-              /var/data  (persistent, 1 GB)              VITE_API_BASE_URL from env
+           servepulse-backend (Docker web service)     serve-pulse-console (static site)
+            FastAPI + MLflow/SQLite on a disk           React console, HTTPS → API
+            /var/data  (persistent, 1 GB)               VITE_API_BASE_URL from env
+            https://servepulse-backend.onrender.com     https://serve-pulse-console.onrender.com
 ```
 
 Both services declare `autoDeployTrigger: checksPass`, so a commit that fails CI is never
@@ -198,8 +199,8 @@ Frontend (build-time only — everything `VITE_`-prefixed is public):
 
 ```bash
 python scripts/deploy/verify_deployment.py \
-  --backend-url https://mlserve-backend.onrender.com \
-  --frontend-url https://mlserve-frontend.onrender.com
+  --backend-url https://servepulse-backend.onrender.com \
+  --frontend-url https://serve-pulse-console.onrender.com
 ```
 
 It checks HTTPS reachability, `/health`, `/ready`, `/model-info`, `/predict` (valid,
@@ -219,7 +220,7 @@ alias moves, the version does not. Reload the deployed service afterwards to pic
 up without a restart:
 
 ```bash
-curl -X POST https://mlserve-backend.onrender.com/admin/reload \
+curl -X POST https://servepulse-backend.onrender.com/admin/reload \
   -H "X-Admin-Token: $MLSERVE_ADMIN_TOKEN"     # read the value from the Render dashboard
 ```
 
