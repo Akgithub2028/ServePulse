@@ -35,7 +35,7 @@ import pandas as pd
 from fastapi import APIRouter, FastAPI, Request, Response, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, RedirectResponse
 
 from mlserve import __version__
 from mlserve.config import Config, load_config
@@ -146,6 +146,12 @@ def _error_response(
 
 
 router = APIRouter()
+
+
+@router.get("/", tags=["operations"], include_in_schema=False)
+def root() -> RedirectResponse:
+    """Redirect root traffic to the interactive API documentation."""
+    return RedirectResponse(url="/docs")
 
 
 @router.get(

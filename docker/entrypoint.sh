@@ -60,7 +60,9 @@ esac
 # preDeployCommand uses to run scripts/deploy/init_production.py through this same
 # entrypoint -- so the bootstrap gets the same ownership repair and the same
 # unprivileged user as the server. With no command, the default is the API server.
+BOOTSTRAP_PRODUCTION=0
 if [ "$#" -eq 0 ]; then
+    BOOTSTRAP_PRODUCTION=1
     set -- uvicorn mlserve.serving.main:app \
         --host "$HOST" \
         --port "$PORT" \
@@ -75,7 +77,7 @@ if [ "$(id -u)" != "0" ]; then
     # Already unprivileged (e.g. `docker run --user 10001`). Nothing to drop or repair;
     # if the data root is unwritable the app reports it clearly instead of failing silently.
     echo "mlserve: running as $(id -un) (uid $(id -u))"
-    if [ "$#" -eq 0 ]; then
+    if [ "$BOOTSTRAP_PRODUCTION" -eq 1 ]; then
         "$PYTHON_BIN" scripts/deploy/init_production.py || true
     fi
     exec "$@"
@@ -101,7 +103,8 @@ if [ -d /app/artifacts ]; then
 fi
 
 if command -v setpriv >/dev/null 2>&1; then
-    if [ "$#" -eq 0 ]; then
+    if [ "$BOOTSTRAP_PRODUCTION" -eq 1 ]; then
+        echo "mlserve: ensuring production model is bootstrapped..."
         setpriv --reuid="$APP_UID" --regid="$APP_GID" --init-groups "$PYTHON_BIN" scripts/deploy/init_production.py || true
     fi
     exec setpriv --reuid="$APP_UID" --regid="$APP_GID" --init-groups "$@"
@@ -111,7 +114,8 @@ fi
 # argv assembled above is re-joined -- safe because every component was validated above.
 if command -v su >/dev/null 2>&1; then
     echo "mlserve: setpriv unavailable, dropping privileges with su"
-    if [ "$#" -eq 0 ]; then
+    if [ "$BOOTSTRAP_PRODUCTION" -eq 1 ]; then
+        echo "mlserve: ensuring production model is bootstrapped..."
         su -s /bin/sh "$APP_USER" -c "$PYTHON_BIN scripts/deploy/init_production.py" || true
     fi
     exec su -s /bin/sh "$APP_USER" -c "$*"
