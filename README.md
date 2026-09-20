@@ -21,7 +21,6 @@
 
 [**🚀 Live Console**](https://serve-pulse-console.onrender.com) •
 [**⚡ Swagger API Docs**](https://servepulse-backend.onrender.com/docs) •
-[**🛠️ Platform Specs**](https://serve-pulse-console.onrender.com/platform) •
 [**System Architecture**](#system-architecture) •
 [**Headline Empirical Results**](#headline-results) •
 [**System Capabilities**](#system-capabilities--architecture-highlights) •
