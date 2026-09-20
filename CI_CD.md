@@ -5,7 +5,7 @@ so **nothing deploys unless this workflow is green on `main`** — there is no s
 production.
 
 Workflow: [`.github/workflows/ci.yml`](.github/workflows/ci.yml) · Runs:
-<https://github.com/Akgithub2028/GitPushTern/actions>
+<https://github.com/Akgithub2028/ServePulse/actions>
 
 The pipeline runs green on `main`: all ten jobs pass, and the container job's evidence is
 recorded in [BENCHMARKS.md](BENCHMARKS.md#docker--measured-in-ci) — image built (89 s,

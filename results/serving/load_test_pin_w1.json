@@ -1,6 +1,6 @@
 {
   "command": [
-    "/Users/virajvekariya/Desktop/Competition/Prem/ml-serving-platform/.venv/bin/python",
+    ".venv/bin/python",
     "-m",
     "uvicorn",
     "mlserve.serving.main:app",

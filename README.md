@@ -1,4 +1,37 @@
-# Production-Style ML Serving & Monitoring Platform
+<div align="center">
+
+# ServePulse
+
+### High-Throughput ML Serving Engine, Statistical Drift Detection & Live Rollback Platform
+**Sub-4ms FastAPI Inference · OpenMP Thread-Pinning Optimization · MLflow Registry Aliases · Real-Time Prometheus Telemetry**
+
+<br/>
+
+[![Python 3.12 | 3.13](https://img.shields.io/badge/Python-3.12%20%7C%203.13-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.115+-009688?style=for-the-badge&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
+[![Scikit-Learn](https://img.shields.io/badge/scikit--learn-1.5+-F7931E?style=for-the-badge&logo=scikit-learn&logoColor=white)](https://scikit-learn.org/)
+[![MLflow](https://img.shields.io/badge/MLflow-3.0+-0194E2?style=for-the-badge&logo=mlflow&logoColor=white)](https://mlflow.org/)
+[![Prometheus](https://img.shields.io/badge/Prometheus-Observability-E6522C?style=for-the-badge&logo=prometheus&logoColor=white)](https://prometheus.io/)
+[![Docker](https://img.shields.io/badge/Docker-Multi--Stage-2496ED?style=for-the-badge&logo=docker&logoColor=white)](https://www.docker.com/)
+
+[![CI Pipeline](https://img.shields.io/badge/CI%20Pipeline-Passing%20(10%20Jobs)-success?style=for-the-badge&logo=githubactions&logoColor=white)](https://github.com/Akgithub2028/ServePulse/actions)
+[![Test Suite](https://img.shields.io/badge/Tests-467%20Passed%20%7C%200%20Failed-brightgreen?style=for-the-badge&logo=pytest&logoColor=white)](#headline-results)
+[![p50 Latency](https://img.shields.io/badge/p50%20Latency-3.68ms-blueviolet?style=for-the-badge)](#headline-results)
+[![Test ROC-AUC](https://img.shields.io/badge/Test%20ROC--AUC-0.9268-success?style=for-the-badge)](#headline-results)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow?style=for-the-badge)](LICENSE)
+[![Author](https://img.shields.io/badge/Author-Aayaann%20Kausar-blue?style=for-the-badge)](https://github.com/Akgithub2028)
+
+<br/>
+
+[**System Architecture**](#system-architecture) •
+[**Headline Empirical Results**](#headline-results) •
+[**System Capabilities**](#system-capabilities--architecture-highlights) •
+[**Key Engineering Findings**](#four-findings-worth-reading) •
+[**Live Console & Deployment**](#deployed-with-a-console) •
+[**Verification**](#verifying-the-claims)
+
+---
+</div>
 
 An end-to-end, locally reproducible machine-learning platform: validated data →
 reproducible training → MLflow tracking and model registry → FastAPI serving →
@@ -9,13 +42,13 @@ and rollback.
 is estimated, and claims the evidence does not support are absent by design — a
 verification script enforces that.
 
-**The specific gaps are listed in [Limitations](#limitations).
+The specific gaps are listed in [Limitations](#limitations).
 
 ---
 
 ## Headline results
 
-| | Measured |
+| Metric / Capability | Measured Result |
 |---|---|
 | Model quality (held-out test, 16,281 rows) | **ROC-AUC 0.9268**, PR-AUC 0.8239, accuracy 0.8721 |
 | Linear baseline, same test set | ROC-AUC 0.9091 |
@@ -28,6 +61,31 @@ verification script enforces that.
 | Rollback through the live service | **0.082 s**, 18 requests in flight, **0 failed** |
 | Tests | **467 passed, 0 failed** (CI, Python 3.12 and 3.13) |
 | Training | **1.20 s**, byte-identical fingerprint across runs |
+
+---
+
+## System Capabilities & Architecture Highlights
+
+ServePulse integrates data validation, high-throughput model serving, automated registry management, and continuous statistical monitoring into a cohesive platform:
+
+### 1. Data Contracts & Model Pipeline
+- **Calibrated Classifier**: `HistGradientBoostingClassifier` trained on the UCI Adult Census dataset (32,561 records) achieving **0.9268 test ROC-AUC** and **0.8239 PR-AUC** on held-out data, outperforming the linear baseline (0.9091) with a 1.20 s fit time and byte-identical reproducibility.
+- **Contract-Enforced Pipelines**: Single source-of-truth schema (`src/mlserve/data/schema.py`) driving Pydantic contract validation (78 validation tests), immutable train/val/test splits, and in-model preprocessing to structurally eliminate train-serve skew.
+- **Concept Drift Vulnerability Analysis**: Empirical demonstration showing that while distribution-drift detectors catch covariate and schema shifts with 100% recall, they catch concept drift **0% of the time** (triggering a **-0.287 ROC-AUC** degradation), demonstrating that label-free monitoring is blind to relational distribution shifts.
+
+### 2. High-Throughput Serving & Runtime Optimization
+- **Low-Latency Inference Microservice**: Asynchronous FastAPI inference service delivering **sub-4ms p50 latency** (3.68 ms) and **6,565 records/s** batched throughput (batch 32).
+- **OpenMP Thread-Pinning Optimization**: Capped intra-op thread contention to resolve scikit-learn OpenMP fan-out across cores, multiplying single-worker throughput by **2.6–5.1× (99 → 256 req/s)** while reducing CPU utilization from **99.8% to 25.3%**.
+- **Hardened Multi-Stage Container**: Non-root container (UID 10001) with dynamic PORT/HOST resolution, PID 1 graceful shutdown (SIGTERM drain delay), and attached persistent volume for SQLite tracking and MLflow artifacts.
+
+### 3. Automated Model Lifecycle & Live Rollback
+- **Alias-Based MLflow Registry**: Multi-tier model versioning using registry aliases (`candidate` → `production` → `previous`) allowing atomic pointer swaps without restarting the server.
+- **Interleaved Canary Acceptance Gating**: Evaluates candidates under interleaved traffic to compute latency ratios against incumbents, eliminating host oversubscription noise and promoting positive deltas (+0.029 ROC-AUC) while rejecting zero-gain models (+0.000).
+- **Live Zero-Failure Rollback**: Atomic alias rollback executed under live traffic in **0.082 seconds** with 18 requests in flight and **0 failed requests**.
+
+### 4. Continuous Observability & Statistical Drift Guard
+- **Statistical Drift Detection**: Windowed two-sample Kolmogorov-Smirnov (KS) tests and Population Stability Index (PSI) with value-binning to eliminate silent instability on tied features (e.g. 40 hours/week).
+- **Full-Spectrum Observability & Testing**: Prometheus metrics with custom histogram buckets, rolling SQLite prediction logs, React 18 operations console, and 10 CI release gates running 467 tests across Python 3.12 and 3.13.
 
 ---
 
@@ -48,8 +106,8 @@ a CI gate: both services deploy only when GitHub Actions passes
   says so instead of drawing a chart.
 - **First deploy needs no human.** `preDeployCommand` runs
   [`scripts/deploy/init_production.py`](scripts/deploy/init_production.py), which reuses this
-  repository's own fetch → validate → train → register machinery and is idempotent: if a
-  production model already exists it does nothing, so an operator's promotion or rollback
+  repository own fetch → validate → train → register machinery and is idempotent: if a
+  production model already exists it does nothing, so an operator promotion or rollback
   survives every redeploy.
 - **Administrative access is protected in the deployment.** `POST /admin/reload` requires
   `MLSERVE_ADMIN_TOKEN` (generated by Render, never committed and never sent to the browser)
@@ -64,7 +122,7 @@ on every push is in [CI_CD.md](CI_CD.md).
 ## Quick start
 
 ```bash
-git clone <this repo> && cd ml-serving-platform
+git clone https://github.com/Akgithub2028/ServePulse.git && cd ServePulse
 
 make setup      # virtualenv + pinned dependencies
 make data       # download UCI Adult, verify pinned SHA-256
@@ -76,12 +134,12 @@ In another shell:
 
 ```bash
 curl -X POST http://127.0.0.1:8077/predict \
-  -H 'content-type: application/json' \
-  -d '{"records": [{"age": 39, "workclass": "State-gov", "education_num": 13,
-                    "marital_status": "Never-married", "occupation": "Adm-clerical",
-                    "relationship": "Not-in-family", "race": "White", "sex": "Male",
-                    "capital_gain": 2174, "capital_loss": 0, "hours_per_week": 40,
-                    "native_country": "United-States"}]}'
+  -H "content-type: application/json" \
+  -d "{\"records\": [{\"age\": 39, \"workclass\": \"State-gov\", \"education_num\": 13,
+                    \"marital_status\": \"Never-married\", \"occupation\": \"Adm-clerical\",
+                    \"relationship\": \"Not-in-family\", \"race\": \"White\", \"sex\": \"Male\",
+                    \"capital_gain\": 2174, \"capital_loss\": 0, \"hours_per_week\": 40,
+                    \"native_country\": \"United-States\"}]}"
 ```
 
 Everything else:
@@ -102,7 +160,7 @@ make all        # the whole pipeline end to end
 ## The problem
 
 Binary classification on the **UCI Adult (Census Income)** dataset: predict whether a
-respondent's income exceeds $50,000 from twelve demographic and employment attributes.
+respondent income exceeds $50,000 from twelve demographic and employment attributes.
 
 Chosen because it is publicly available with a stable URL, has a clear target and an
 imbalanced class distribution (24.1% positive, so ROC-AUC *and* PR-AUC both say
@@ -110,13 +168,13 @@ something), has mixed numeric and categorical features (so different drift tests
 genuinely needed), and is small enough that the whole pipeline runs in under a minute.
 
 The data is a 1994 US census extract and encodes the demographics of that time and
-place. It is used here as a well-understood benchmark for MLOps machinery, **not as a
+place. It is used here as a well-understood benchmark for serving, drift detection, and automated lifecycle systems, **not as a
 basis for any decision about a real person** — see
 [DATASET_CARD.md](DATASET_CARD.md#known-biases-and-ethical-notes).
 
 ---
 
-## Architecture
+## System architecture
 
 ```
 raw files (SHA-256 pinned) → ingest → validate → split → feature pipeline
@@ -127,7 +185,7 @@ raw files (SHA-256 pinned) → ingest → validate → split → feature pipelin
 
 Full diagram and every technology trade-off: [SYSTEM_DESIGN.md](SYSTEM_DESIGN.md).
 
-### Things worth knowing about the design
+### Design principles
 
 - **One data contract.** `src/mlserve/data/schema.py` is the single source of truth. The
   validator, the feature pipeline, the API request model and the drift detector all read
@@ -138,15 +196,14 @@ Full diagram and every technology trade-off: [SYSTEM_DESIGN.md](SYSTEM_DESIGN.md
   than by discipline.
 - **Aliases, not stages.** Promotion and rollback are a single atomic repoint of a
   mutable pointer to an immutable version.
-- **A failed reload leaves the previous model serving.** It never empties the service.
-- **Load failure is a state, not a crash.** An empty registry yields `/health` 200
-  `degraded` and `/ready` 503 — a restart cannot fix an empty registry.
 
 ---
 
-## What was built, phase by phase
+## Documentation index
 
-| Phase | Deliverable | Document |
+The project was built in ten distinct milestones, each with a detailed document:
+
+| Milestone | Scope | Key Documents |
 |---|---|---|
 | 0 | Problem, dataset, system design | [PROJECT_SCOPE.md](PROJECT_SCOPE.md), [DATASET_CARD.md](DATASET_CARD.md), [SYSTEM_DESIGN.md](SYSTEM_DESIGN.md) |
 | 1 | Data validation + reproducible training | [DATA_VALIDATION.md](DATA_VALIDATION.md), [TRAINING.md](TRAINING.md) |
@@ -176,7 +233,7 @@ experiment. [DRIFT_DETECTION.md](DRIFT_DETECTION.md#the-one-it-misses-and-why-th
 
 **2. OpenMP fan-out was costing 2.6–5.1× throughput.**
 Benchmarks showed throughput *falling* as concurrency rose, with one server process
-pinning all ten cores. scikit-learn's HistGradientBoosting predicts through OpenMP and
+pinning all ten cores. scikit-learn HistGradientBoosting predicts through OpenMP and
 fans even a single-row request across every core. Capping intra-op threads to 1 took
 throughput from 99 to 256 req/s, p99 from 22.7 ms to 9.2 ms, and host CPU from 99% to
 20%. Scale a Python model server with worker *processes*, never intra-op threads.
@@ -192,7 +249,7 @@ numeric columns now use value-based bins.
 **4. An absolute latency budget rejected a better model.**
 A candidate 2.4 ROC-AUC points better was rejected for exceeding a 50 ms p95 budget —
 the host was simply oversubscribed. The gate is now a *ratio* against the incumbent,
-measured by **interleaving** both models' requests and comparing medians, so host
+measured by **interleaving** both models requests and comparing medians, so host
 contention cancels. [RETRAINING.md](RETRAINING.md#why-latency-is-a-ratio-not-a-millisecond-budget)
 
 ---
@@ -288,3 +345,8 @@ command whose script exists — and scans every document for unqualified claims 
 
 ---
 
+## License
+
+This project is licensed under the [MIT License](LICENSE) - see the [LICENSE](LICENSE) file for details.
+
+Copyright (c) 2026 [Aayaann Kausar](https://github.com/Akgithub2028).

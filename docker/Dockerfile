@@ -54,7 +54,7 @@ FROM python:3.13.9-slim-bookworm AS runtime
 
 LABEL org.opencontainers.image.title="mlserve" \
       org.opencontainers.image.description="Adult income classifier serving API" \
-      org.opencontainers.image.source="https://github.com/Akgithub2028/GitPushTern"
+      org.opencontainers.image.source="https://github.com/Akgithub2028/ServePulse"
 
 # HOME points at the unprivileged application user's home: without it MLflow and
 # plotting caches fall back to /root, which uid 10001 cannot write.

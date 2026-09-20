@@ -165,7 +165,7 @@
         "validation_recall": 0.672194,
         "validation_roc_auc": 0.93027
       },
-      "model_path": "/Users/virajvekariya/Desktop/Competition/Prem/ml-serving-platform/artifacts/current/model.joblib",
+      "model_path": "artifacts/current/model.joblib",
       "params": {
         "early_stopping": false,
         "l2_regularization": 1.0,
