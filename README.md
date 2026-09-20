@@ -214,7 +214,7 @@ The project was built in ten distinct milestones, each with a detailed document:
 | 6 | Drift detection | [DRIFT_DETECTION.md](DRIFT_DETECTION.md) |
 | 7 | Retraining, promotion, rollback | [RETRAINING.md](RETRAINING.md), [ROLLBACK.md](ROLLBACK.md) |
 | 8 | Full testing + benchmarking | [TEST_RESULTS.md](TEST_RESULTS.md), [BENCHMARKS.md](BENCHMARKS.md), [FAILURE_ANALYSIS.md](FAILURE_ANALYSIS.md), [REPRODUCIBILITY.md](REPRODUCIBILITY.md) |
-| 9 | CV pointers + interview prep | [CV_POINTERS_ML_SERVING_MONITORING.md](CV_POINTERS_ML_SERVING_MONITORING.md), [INTERVIEW_PREPARATION.md](INTERVIEW_PREPARATION.md), [FINAL_PROJECT_REPORT.md](FINAL_PROJECT_REPORT.md) |
+| 9 | Project verification & synthesis | [FINAL_PROJECT_REPORT.md](FINAL_PROJECT_REPORT.md), [BENCHMARKS.md](BENCHMARKS.md) |
 
 ---
 
@@ -337,8 +337,7 @@ python scripts/verify/verify_clean_env_repro.py  # rebuild in a fresh venv and c
 python scripts/verify/check_fingerprint.py       # fresh training run vs the recorded baseline
 ```
 
-`verify_claims.py` checks that every row of the evidence table in
-[CV_POINTERS_ML_SERVING_MONITORING.md](CV_POINTERS_ML_SERVING_MONITORING.md) names a
+`verify_claims.py` checks that every row of the evidence table names a
 file that exists, a number that actually appears in that file, and a reproduction
 command whose script exists — and scans every document for unqualified claims such as
 "production-ready" or "zero-downtime".

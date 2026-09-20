@@ -40,3 +40,9 @@ frontend/.env.local
 frontend/playwright-report/
 frontend/test-results/
 frontend/.playwright/
+
+# Candidate notes and interview preparation
+CV_POINTERS_ML_SERVING_MONITORING.md
+INTERVIEW_PREPARATION.md
+*CV_POINTERS*
+*INTERVIEW_PREPARATION*

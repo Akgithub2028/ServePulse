@@ -28,7 +28,7 @@ with promotion and rollback.
 
 It is **not production-ready**, and no part of this repository claims otherwise. The
 specific gaps are listed in [SYSTEM_DESIGN.md](SYSTEM_DESIGN.md#known-gaps) and
-summarised in [CV_POINTERS_ML_SERVING_MONITORING.md](CV_POINTERS_ML_SERVING_MONITORING.md#limitations).
+summarised in [README.md](README.md#limitations).
 The largest are: no authentication anywhere, single-node SQLite storage, an
 explicitly-triggered rather than scheduled retraining loop, and a Docker image that was
 written but never built because no container runtime was available on the development

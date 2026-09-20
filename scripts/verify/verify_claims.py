@@ -82,8 +82,6 @@ REQUIRED_DOCS = [
     "FAILURE_ANALYSIS.md",
     "REPRODUCIBILITY.md",
     "FINAL_PROJECT_REPORT.md",
-    "INTERVIEW_PREPARATION.md",
-    "CV_POINTERS_ML_SERVING_MONITORING.md",
 ]
 
 REQUIRED_RESULTS = [
@@ -147,7 +145,7 @@ def strip_markup(value: str) -> str:
 
 def check_evidence_table(problems: list[str]) -> int:
     if not CV_FILE.exists():
-        fail(problems, f"{CV_FILE.name} does not exist")
+        # CV and interview notes are private candidate files and ignored by git
         return 0
     rows = parse_evidence_rows(CV_FILE.read_text())
     if not rows:

@@ -132,4 +132,4 @@ different piece of infrastructure from anything built here.
 
 See [README.md](README.md) for layout and quick start. Per-phase documents are linked
 from the table there. Evidence for every CV claim is in
-[CV_POINTERS_ML_SERVING_MONITORING.md](CV_POINTERS_ML_SERVING_MONITORING.md).
+[BENCHMARKS.md](BENCHMARKS.md).

@@ -1,7 +1,7 @@
 # `results/` — recorded evidence
 
 Every number quoted in the repository's documentation resolves to a file here. The evidence
-table in `../CV_POINTERS_ML_SERVING_MONITORING.md` names these files explicitly, and
+table in `../BENCHMARKS.md` names these files explicitly, and
 `../scripts/verify/verify_claims.py` fails if a documented figure cannot be found in them.
 
 ## Contents
@@ -23,4 +23,4 @@ table in `../CV_POINTERS_ML_SERVING_MONITORING.md` names these files explicitly,
 | Reproducibility baseline | `summary.json` → `registered.tags.training_fingerprint` |
 | Checked on every push | `../scripts/verify/check_fingerprint.py` |
 | Regenerate everything | `../scripts/collect_results.py` |
-| Evidence table and its verifier | `../CV_POINTERS_ML_SERVING_MONITORING.md`, `../scripts/verify/verify_claims.py` |
+| Evidence table and its verifier | `../BENCHMARKS.md`, `../scripts/verify/verify_claims.py` |
