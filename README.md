@@ -2,7 +2,7 @@
 
 # ServePulse
 
-### High-Throughput ML Serving Engine, Statistical Drift Detection & Live Rollback Platform
+### ML Serving Engine, Statistical Drift Detection & Live Rollback Platform
 **Sub-4ms FastAPI Inference · OpenMP Thread-Pinning Optimization · MLflow Registry Aliases · Real-Time Prometheus Telemetry**
 
 <br/>
